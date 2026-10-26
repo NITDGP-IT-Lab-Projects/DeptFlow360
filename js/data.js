@@ -628,11 +628,16 @@ const EVALUATION_RUBRICS = [
 // LocalStorage Helper with fallback
 class DeptStore {
   static PREFIX = "DAWMS_DEPT_PORTAL_";
+  static _memoryStore = {};
 
   static load(key, defaultVal) {
     try {
-      const data = localStorage.getItem(this.PREFIX + key);
-      return data ? JSON.parse(data) : defaultVal;
+      if (typeof localStorage !== "undefined") {
+        const data = localStorage.getItem(this.PREFIX + key);
+        return data ? JSON.parse(data) : defaultVal;
+      }
+      const memData = this._memoryStore[this.PREFIX + key];
+      return memData !== undefined ? JSON.parse(memData) : defaultVal;
     } catch (e) {
       console.warn("Storage read failed, returning defaults", e);
       return defaultVal;
@@ -641,7 +646,12 @@ class DeptStore {
 
   static save(key, value) {
     try {
-      localStorage.setItem(this.PREFIX + key, JSON.stringify(value));
+      const serialized = JSON.stringify(value);
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem(this.PREFIX + key, serialized);
+      } else {
+        this._memoryStore[this.PREFIX + key] = serialized;
+      }
     } catch (e) {
       console.error("Storage write failed", e);
     }
@@ -649,11 +659,27 @@ class DeptStore {
 
   static reset() {
     try {
-      Object.keys(localStorage).forEach(k => {
-        if (k.startsWith(this.PREFIX)) localStorage.removeItem(k);
-      });
+      if (typeof localStorage !== "undefined") {
+        Object.keys(localStorage).forEach(k => {
+          if (k.startsWith(this.PREFIX)) localStorage.removeItem(k);
+        });
+      }
+      this._memoryStore = {};
     } catch (e) {
       console.error("Storage reset failed", e);
     }
   }
 }
+
+// Node.js CommonJS Module Export for Unit Testing
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    INITIAL_FACULTY,
+    INITIAL_ROLES,
+    INITIAL_PROJECT_TEAMS,
+    INITIAL_WORKFLOWS,
+    EVALUATION_RUBRICS,
+    DeptStore
+  };
+}
+

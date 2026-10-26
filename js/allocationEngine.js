@@ -189,3 +189,8 @@ class AllocationEngine {
     this.store.save("FACULTY", this.faculty);
   }
 }
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { AllocationEngine };
+}
+

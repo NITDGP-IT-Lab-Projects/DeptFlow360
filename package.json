@@ -1,0 +1,25 @@
+{
+  "name": "deptflow-360",
+  "version": "1.0.0",
+  "description": "Departmental Activity & Workflow Management System (DAWMS) - IT Engineering Lab",
+  "main": "index.html",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "test:syntax": "node tests/syntax-check.js",
+    "ci": "node tests/syntax-check.js && node --test tests/*.test.js"
+  },
+  "keywords": [
+    "workflow",
+    "departmental-erp",
+    "project-allocation",
+    "gale-shapley",
+    "rbac",
+    "docker",
+    "github-actions"
+  ],
+  "author": "IT Department Engineering Lab",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

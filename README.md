@@ -91,6 +91,18 @@ d:/Technical/Sem7_IT_Lab/Project7/
 │   ├── workflowEngine.js        # Deterministic state machine, RBAC guards, and notifications
 │   ├── allocationEngine.js      # Gale-Shapley preference matching & quota manager
 │   └── app.js                   # Application coordinator, view transitions, and interactive modals
+├── Dockerfile                   # Production Nginx Alpine container specification with HEALTHCHECK
+├── docker-compose.yml           # Container orchestration with port mapping & healthcheck
+├── nginx.conf                   # Hardened Nginx config (gzip, security headers, /healthz, SPA routing)
+├── .dockerignore                # Build context exclusion rules
+├── package.json                 # Test & CI execution scripts
+├── tests/
+│   ├── workflowEngine.test.js   # Unit tests for WorkflowEngine, RBAC & rubrics
+│   ├── allocationEngine.test.js # Unit tests for Gale-Shapley matching & quota guards
+│   └── syntax-check.js          # Static asset & JavaScript syntax integrity validator
+├── .github/
+│   └── workflows/
+│       └── ci.yml               # GitHub Actions CI matrix testing (Node 18/20/22) + Docker healthcheck
 ├── docs/
 │   └── ARCHITECTURE_AND_DESIGN.md # Detailed technical specification & UML/State diagrams
 └── README.md                    # Project documentation & Lab Viva Voce reference
@@ -98,15 +110,84 @@ d:/Technical/Sem7_IT_Lab/Project7/
 
 ---
 
-## 6. How to Run Locally
+## 6. Execution Options
 
-Because the system is engineered with self-contained, zero-install modern web standards:
-1. Double-click `index.html` or open `file:///d:/Technical/Sem7_IT_Lab/Project7/index.html` in Google Chrome, Microsoft Edge, Mozilla Firefox, or any modern browser.
-2. No Node.js server, Python backend, or database setup is required—the entire reactive engine runs with instant persistence in the browser.
+### Option A: Direct Browser Run (Zero-Dependencies)
+Double-click `index.html` or navigate to:
+```
+file:///d:/Technical/Sem7_IT_Lab/Project7/index.html
+```
+
+### Option B: Docker Containerization
+The application is fully containerized using an ultra-lightweight `nginx:alpine` image with built-in healthchecks and security headers.
+
+1. **Build Docker Image**:
+   ```bash
+   docker build -t deptflow360:latest .
+   ```
+2. **Run Container**:
+   ```bash
+   docker run -d --name deptflow-app -p 8080:80 deptflow360:latest
+   ```
+3. **Verify Healthcheck**:
+   ```bash
+   curl http://localhost:8080/healthz
+   # Output: OK
+   ```
+4. **Access in Browser**:
+   Navigate to `http://localhost:8080`
+
+### Option C: Docker Compose
+```bash
+# Launch with healthcheck
+docker compose up -d
+
+# Check service status
+docker compose ps
+
+# View logs
+docker compose logs -f
+
+# Teardown
+docker compose down
+```
 
 ---
 
-## 7. Key Features & Verification Steps
+## 7. Automated Testing & Continuous Integration (CI)
+
+### 7.1 Running Tests Locally
+The project includes a dependency-free test suite utilizing Node.js's built-in test runner:
+
+```bash
+# Run syntax and static asset integrity checks
+npm run test:syntax
+
+# Run all unit tests (WorkflowEngine & AllocationEngine)
+npm test
+
+# Run entire CI test suite locally
+npm run ci
+```
+
+### 7.2 GitHub Actions CI Pipeline (`.github/workflows/ci.yml`)
+Every code push and pull request to `main` / `master` automatically triggers a 2-stage CI workflow on GitHub cloud runners:
+
+1. **Job 1: Unit Tests & Code Integrity Matrix (`test-and-lint`)**:
+   - Executes across **Node.js 18.x, 20.x, and 22.x**.
+   - Validates JavaScript syntax using Node's `vm` compiler.
+   - Tests deterministic state transitions, RBAC permissions, audit log history creation, and milestone scoring.
+   - Tests Gale-Shapley stable matching, quota constraints, cascading fallbacks, and manual overrides.
+2. **Job 2: Docker Build & Live Health Check (`docker-validation`)**:
+   - Builds the production Docker image with Docker Buildx.
+   - Spins up the container and probes `http://localhost:8080/healthz`.
+   - Asserts HTTP 200 status code and checks that response payload contains `DeptFlow 360`.
+   - Validates Nginx security headers (`X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`).
+   - Automatically dumps container logs and cleans up.
+
+---
+
+## 8. Key Features & Verification Steps
 
 1. **Dashboard KPIs**: Real-time counts of active workflows, pending tier approvals, sanctioned projects, and quota load percentage.
 2. **Multi-Stage Approvals Inbox**:
@@ -126,7 +207,7 @@ Because the system is engineered with self-contained, zero-install modern web st
 
 ---
 
-## 8. University Lab Viva Voce Q&A Reference
+## 9. University Lab Viva Voce Q&A Reference
 
 ### Q1: Why use a Workflow-Based Architecture instead of simple CRUD database tables?
 **Answer:** Academic activities are non-linear, multi-stakeholder processes with legal and regulatory ramifications. A basic CRUD database allows arbitrary writes and lacks state transition history. A workflow-based architecture enforces **finite deterministic states**, ensures **only authorized actors can trigger specific transitions**, maintains a **tamper-evident audit ledger**, and prevents illegal bypasses (e.g., an unallocated or unverified project cannot be accidentally approved by the HOD).
@@ -136,3 +217,6 @@ Because the system is engineered with self-contained, zero-install modern web st
 
 ### Q3: How is RBAC enforced on the client side?
 **Answer:** In `workflowEngine.js`, the method `getAvailableActions()` cross-references `activeRoleKey`, `activeRoleData.id`, and `workflow.state` against defined permission vectors. Actions such as `HOD_APPROVE` are physically stripped from the DOM and blocked in the transition validator if invoked by unauthorized roles.
+
+### Q4: How is the Docker image optimized and secured?
+**Answer:** The container utilizes `nginx:alpine` (~23MB total footprint), strips default server configurations, enforces secure file read permissions, enables Gzip compression, injects anti-clickjacking and MIME-type sniffing defense headers (`X-Frame-Options`, `X-Content-Type-Options`), and exposes a dedicated `/healthz` probe for container orchestrators (Kubernetes / Docker Compose).

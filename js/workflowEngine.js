@@ -402,3 +402,8 @@ class WorkflowEngine {
     this.store.save("WORKFLOWS", this.workflows);
   }
 }
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { WorkflowEngine };
+}
+
