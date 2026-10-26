@@ -34,19 +34,19 @@ export const RubricEvalView = () => {
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
-          <div style={{ background: '#10121a', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem' }}>
+          <div style={{ background: '#f8fafc', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem' }}>
             <span style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Criterion 1 (30 pts)</span>
-            <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.85rem', margin: '4px 0' }}>Literature Review & SOTA</div>
+            <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.85rem', margin: '4px 0' }}>Literature Review & SOTA</div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Citation quality, problem gap clarity, benchmark metrics</div>
           </div>
-          <div style={{ background: '#10121a', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem' }}>
+          <div style={{ background: '#f8fafc', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem' }}>
             <span style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Criterion 2 (40 pts)</span>
-            <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.85rem', margin: '4px 0' }}>Methodology & Technical Rigor</div>
+            <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.85rem', margin: '4px 0' }}>Methodology & Technical Rigor</div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Mathematical rigor, system architecture, modular software testing</div>
           </div>
-          <div style={{ background: '#10121a', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem' }}>
+          <div style={{ background: '#f8fafc', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem' }}>
             <span style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Criterion 3 (30 pts)</span>
-            <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.85rem', margin: '4px 0' }}>Viva Voce & Demonstration</div>
+            <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.85rem', margin: '4px 0' }}>Viva Voce & Demonstration</div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Working prototype, cross-examination defense, individual contribution</div>
           </div>
         </div>
@@ -67,7 +67,7 @@ export const RubricEvalView = () => {
                     <span className="wf-id">{wf.id}</span>
                     <span className={`type-tag ${wf.category.toLowerCase()}`}>{wf.category}</span>
                   </div>
-                  <h3 style={{ color: '#fff', fontSize: '1.05rem', margin: '4px 0' }}>{wf.title}</h3>
+                  <h3 style={{ color: 'var(--text-primary)', fontSize: '1.05rem', margin: '4px 0' }}>{wf.title}</h3>
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                     Candidate Consortia: <strong>{wf.submittedBy?.name}</strong> • Supervisor: <strong>{wf.details?.guideName || wf.details?.allocatedGuideId || 'Pending'}</strong>
                   </div>
@@ -86,7 +86,7 @@ export const RubricEvalView = () => {
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        background: '#10121a',
+                        background: '#f8fafc',
                         border: '1px solid var(--border-subtle)',
                         borderRadius: 'var(--radius-md)',
                         padding: '1rem',
@@ -95,7 +95,7 @@ export const RubricEvalView = () => {
                       }}
                     >
                       <div>
-                        <strong style={{ color: '#fff', fontSize: '0.88rem' }}>{m.name}</strong>
+                        <strong style={{ color: 'var(--text-primary)', fontSize: '0.88rem' }}>{m.name}</strong>
                         <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
                           Weightage: {m.weightage}% • Max Score: {m.maxScore || 100} • Target: {m.deadline}
                         </div>
@@ -113,23 +113,23 @@ export const RubricEvalView = () => {
                               {m.score} / 100
                             </div>
                             <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                              {m.score >= 90 ? 'Outstanding (O)' : m.score >= 80 ? 'Excellent (E)' : m.score >= 70 ? 'Very Good (A)' : 'Good (B)'}
+                              Grade: <strong>{m.grade || 'A'}</strong>
                             </span>
                           </div>
                         ) : (
-                          <span className="status-badge UNDER_GUIDE_REVIEW" style={{ fontSize: '0.75rem' }}>
-                            Awaiting Evaluation
+                          <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                            Pending Defense
                           </span>
                         )}
 
                         {canGrade && (
                           <button 
-                            className="btn btn-primary btn-sm"
+                            className="btn btn-secondary btn-sm"
                             onClick={() => openModal('RUBRIC', { workflow: wf, milestone: m })}
                             style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                           >
                             <IconSliders size={13} />
-                            <span>{isEvaluated ? 'Re-Score Rubric' : 'Score Defense'}</span>
+                            <span>{isEvaluated ? 'Re-Score' : 'Evaluate'}</span>
                           </button>
                         )}
                       </div>

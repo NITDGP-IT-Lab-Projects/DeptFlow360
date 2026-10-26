@@ -162,29 +162,31 @@ export const Topbar = () => {
                 right: 0,
                 top: '46px',
                 width: '350px',
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border-medium)',
+                background: '#ffffff',
+                border: '1px solid var(--border-subtle)',
                 borderRadius: 'var(--radius-lg)',
-                boxShadow: '0 16px 36px -6px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08)',
+                boxShadow: '0 12px 32px -4px rgba(15, 23, 42, 0.15)',
                 zIndex: 150,
-                animation: 'popoverIn 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
+                animation: 'popoverIn 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                overflow: 'hidden'
               }}
             >
               <div style={{
                 padding: '0.9rem 1.1rem',
                 borderBottom: '1px solid var(--border-subtle)',
+                background: '#f8fafc',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <IconBell size={15} className="text-cyan" />
-                  <strong style={{ fontSize: '0.84rem', color: '#fff' }}>Notifications ({unreadCount})</strong>
+                  <strong style={{ fontSize: '0.84rem', color: 'var(--text-primary)' }}>Notifications ({unreadCount})</strong>
                 </div>
                 {unreadCount > 0 && (
                   <button 
                     type="button"
-                    style={{ background: 'none', border: 'none', fontSize: '0.72rem', color: 'var(--accent-cyan)', cursor: 'pointer', padding: 0 }}
+                    style={{ background: 'none', border: 'none', fontSize: '0.72rem', color: 'var(--accent-primary)', cursor: 'pointer', padding: 0, fontWeight: 600 }}
                     onClick={markAllNotificationsRead}
                   >
                     Mark all read
@@ -205,19 +207,19 @@ export const Topbar = () => {
                       style={{
                         padding: '0.8rem 1.1rem',
                         borderBottom: '1px solid var(--border-subtle)',
-                        background: n.read ? 'transparent' : 'rgba(99, 102, 241, 0.07)',
+                        background: n.read ? '#ffffff' : '#f0f9ff',
                         transition: 'background 0.15s ease'
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: n.read ? 'var(--text-secondary)' : '#fff' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: n.read ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
                           {n.title}
                         </span>
                         <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '3px' }}>
                           <IconClock size={11} /> {n.timestamp}
                         </span>
                       </div>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.45 }}>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.45 }}>
                         {n.message}
                       </p>
                     </div>

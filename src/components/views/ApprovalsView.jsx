@@ -145,7 +145,7 @@ export const ApprovalsView = () => {
                   <tr key={wf.id}>
                     <td><span className="wf-id">{wf.id}</span></td>
                     <td>
-                      <div style={{ fontWeight: 600, color: '#fff' }}>{wf.title}</div>
+                      <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{wf.title}</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                         Lead: {wf.submittedBy?.name} • Domain: {wf.details?.domain || 'General IT'}
                       </div>

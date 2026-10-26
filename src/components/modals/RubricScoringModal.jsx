@@ -1,41 +1,38 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
 
-export const RubricScoringModal = ({ workflow, milestone }) => {
-  const { closeModal, handleEvaluateMilestone } = useApp();
+export const RubricScoringModal = ({ workflow: propWf, milestone: propMs, data }) => {
+  const { closeModal, handleScoreMilestone } = useApp();
 
-  const initialScores = milestone.rubricScores || {};
-  const [litScore, setLitScore] = useState(initialScores.literatureSurvey ?? 26);
-  const [rigorScore, setRigorScore] = useState(initialScores.rigorAndMath ?? 35);
-  const [oralScore, setOralScore] = useState(initialScores.oralDefense ?? 27);
-  const [feedback, setFeedback] = useState(milestone.feedback || '');
+  const workflow = propWf || data?.workflow;
+  const milestone = propMs || data?.milestone;
+
+  const [litScore, setLitScore] = useState(25);
+  const [rigorScore, setRigorScore] = useState(35);
+  const [oralScore, setOralScore] = useState(26);
+  const [feedback, setFeedback] = useState('Satisfactory demonstration. Good mathematical rigor and prototype implementation.');
   const [submitting, setSubmitting] = useState(false);
+
+  if (!workflow || !milestone) return null;
 
   const totalScore = Number(litScore) + Number(rigorScore) + Number(oralScore);
 
-  const getGradeInfo = (score) => {
-    if (score >= 90) return { label: 'Outstanding (O / A+)', color: 'var(--status-approved)' };
-    if (score >= 80) return { label: 'Excellent (E / A)', color: 'var(--status-approved)' };
-    if (score >= 70) return { label: 'Very Good (B+)', color: 'var(--status-pending)' };
-    if (score >= 60) return { label: 'Good (B)', color: 'var(--status-pending)' };
-    return { label: 'Needs Remediation (F)', color: 'var(--status-rejected)' };
+  const getGrade = (score) => {
+    if (score >= 90) return { grade: 'O', label: 'Outstanding', cls: 'APPROVED' };
+    if (score >= 80) return { grade: 'E', label: 'Excellent', cls: 'APPROVED' };
+    if (score >= 70) return { grade: 'A', label: 'Very Good', cls: 'UNDER_COORDINATOR_REVIEW' };
+    if (score >= 60) return { grade: 'B', label: 'Good', cls: 'UNDER_GUIDE_REVIEW' };
+    if (score >= 50) return { grade: 'C', label: 'Satisfactory', cls: 'UNDER_HOD_REVIEW' };
+    return { grade: 'F', label: 'Failed Defense', cls: 'REJECTED' };
   };
 
-  const gradeInfo = getGradeInfo(totalScore);
+  const gradeInfo = getGrade(totalScore);
 
-  const handleSave = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setSubmitting(true);
     try {
-      await handleEvaluateMilestone(
-        workflow.id,
-        milestone.id,
-        {
-          literatureSurvey: Number(litScore),
-          rigorAndMath: Number(rigorScore),
-          oralDefense: Number(oralScore)
-        },
-        feedback || 'Comprehensive milestone defense approved.'
-      );
+      await handleScoreMilestone(workflow.id, milestone.id, totalScore, feedback);
       closeModal();
     } catch {
       setSubmitting(false);
@@ -44,7 +41,7 @@ export const RubricScoringModal = ({ workflow, milestone }) => {
 
   const getTrackBackground = (val, max) => {
     const pct = (val / max) * 100;
-    return `linear-gradient(to right, #4f46e5 0%, #4f46e5 ${pct}%, #1e2230 ${pct}%, #1e2230 100%)`;
+    return `linear-gradient(to right, #4f46e5 0%, #4f46e5 ${pct}%, #e2e8f0 ${pct}%, #e2e8f0 100%)`;
   };
 
   return (
@@ -52,9 +49,9 @@ export const RubricScoringModal = ({ workflow, milestone }) => {
       <div className="modal-dialog">
         <div className="modal-header">
           <div>
-            <h2 id="rubricModalTitle">Milestone Rubric Evaluation</h2>
-            <div id="rubricModalSubtitle" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-              [{workflow.id}] {milestone.name} • {workflow.submittedBy?.name}
+            <h2>Continuous Assessment Defense Station</h2>
+            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+              Evaluating [{workflow.id}]: {milestone.name}
             </div>
           </div>
           <button className="modal-close" onClick={closeModal}>&times;</button>
@@ -63,9 +60,9 @@ export const RubricScoringModal = ({ workflow, milestone }) => {
         <div className="modal-body">
           <div id="rubricCriteriaContainer" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             {/* Criterion 1 */}
-            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                   1. Literature Survey & Problem Formulation (Max 30)
                 </span>
                 <strong style={{ color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>
@@ -87,9 +84,9 @@ export const RubricScoringModal = ({ workflow, milestone }) => {
             </div>
 
             {/* Criterion 2 */}
-            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                   2. Technical Rigor & Mathematical Architecture (Max 40)
                 </span>
                 <strong style={{ color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>
@@ -111,9 +108,9 @@ export const RubricScoringModal = ({ workflow, milestone }) => {
             </div>
 
             {/* Criterion 3 */}
-            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                   3. Viva Voce Demonstration & Q&A (Max 30)
                 </span>
                 <strong style={{ color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>
@@ -137,7 +134,7 @@ export const RubricScoringModal = ({ workflow, milestone }) => {
 
           {/* Composite Score Card with Fluid Grade Morph */}
           <div style={{
-            background: '#151824',
+            background: '#ffffff',
             border: '1px solid var(--border-medium)',
             borderRadius: 'var(--radius-lg)',
             padding: '1.25rem',
@@ -150,45 +147,44 @@ export const RubricScoringModal = ({ workflow, milestone }) => {
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Composite ABET / NBA Outcome Score
               </div>
-              <div id="rubricTotalDisplay" style={{ fontFamily: 'var(--font-mono)', fontSize: '1.85rem', fontWeight: 900, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
+              <div id="rubricTotalDisplay" style={{ fontFamily: 'var(--font-mono)', fontSize: '1.85rem', fontWeight: 900, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
                 {totalScore} <span style={{ fontSize: '1rem', color: 'var(--text-muted)', fontWeight: 500 }}>/ 100</span>
               </div>
             </div>
             <div>
-              <span id="rubricGradeBadge" className="status-badge" style={{
+              <span id="rubricGradeBadge" className={`status-badge ${gradeInfo.cls}`} style={{
                 fontWeight: 800,
                 fontSize: '0.9rem',
-                color: gradeInfo.color,
-                background: 'rgba(255,255,255,0.04)',
-                border: `1px solid ${gradeInfo.color}`,
-                padding: '0.4rem 0.9rem'
+                padding: '0.35rem 0.85rem'
               }}>
-                {gradeInfo.label}
+                Grade: {gradeInfo.grade} ({gradeInfo.label})
               </span>
             </div>
           </div>
 
+          {/* Qualitative Feedback */}
           <div className="form-group">
-            <label>Qualitative Examiner Feedback & Defense Remarks:</label>
-            <input 
-              type="text" 
-              className="form-control" 
-              placeholder="Provide constructive feedback on implementation quality, slide defense, and next steps..."
+            <label>Evaluator Feedback & Defense Comments:</label>
+            <textarea 
+              className="form-control"
+              rows="3"
+              id="rubricFeedbackInput"
               value={feedback}
               onChange={(e) => setFeedback(e.target.value)}
+              placeholder="Record defense observations, architectural recommendations, and viva questions..."
             />
           </div>
         </div>
 
         <div className="modal-footer">
-          <button type="button" className="btn btn-secondary" onClick={closeModal}>Cancel</button>
+          <button className="btn btn-secondary" onClick={closeModal}>Cancel</button>
           <button 
-            type="button" 
-            className="btn btn-success" 
+            className="btn btn-primary"
+            id="btnSaveRubricScore"
             disabled={submitting}
-            onClick={handleSave}
+            onClick={handleSubmit}
           >
-            {submitting ? 'Committing...' : 'Commit Assessment Outcome'}
+            {submitting ? 'Recording Score...' : 'Submit & Seal Evaluation'}
           </button>
         </div>
       </div>
