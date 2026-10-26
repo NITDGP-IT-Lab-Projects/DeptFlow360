@@ -3,11 +3,35 @@
  * Project Allocation Engine: Preference-Based Gale-Shapley / Priority Matching
  */
 
+const getInitialFaculty = () => {
+  if (typeof require !== "undefined" && typeof module !== "undefined") {
+    try {
+      const data = require("./data.js");
+      return JSON.parse(JSON.stringify(data.INITIAL_FACULTY));
+    } catch (e) {
+      return [];
+    }
+  }
+  return typeof INITIAL_FACULTY !== "undefined" ? JSON.parse(JSON.stringify(INITIAL_FACULTY)) : [];
+};
+
+const getInitialTeams = () => {
+  if (typeof require !== "undefined" && typeof module !== "undefined") {
+    try {
+      const data = require("./data.js");
+      return JSON.parse(JSON.stringify(data.INITIAL_PROJECT_TEAMS));
+    } catch (e) {
+      return [];
+    }
+  }
+  return typeof INITIAL_PROJECT_TEAMS !== "undefined" ? JSON.parse(JSON.stringify(INITIAL_PROJECT_TEAMS)) : [];
+};
+
 class AllocationEngine {
   constructor(store) {
     this.store = store;
-    this.faculty = this.store.load("FACULTY", INITIAL_FACULTY);
-    this.teams = this.store.load("PROJECT_TEAMS", INITIAL_PROJECT_TEAMS);
+    this.faculty = this.store.load("FACULTY", getInitialFaculty());
+    this.teams = this.store.load("PROJECT_TEAMS", getInitialTeams());
   }
 
   getFacultyList() {
@@ -178,8 +202,8 @@ class AllocationEngine {
 
   // Reset to initial
   resetAllocations() {
-    this.teams = JSON.parse(JSON.stringify(INITIAL_PROJECT_TEAMS));
-    this.faculty = JSON.parse(JSON.stringify(INITIAL_FACULTY));
+    this.teams = getInitialTeams();
+    this.faculty = getInitialFaculty();
     this.calculateQuotas();
     this.save();
   }

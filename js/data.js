@@ -634,13 +634,13 @@ class DeptStore {
     try {
       if (typeof localStorage !== "undefined") {
         const data = localStorage.getItem(this.PREFIX + key);
-        return data ? JSON.parse(data) : defaultVal;
+        return data ? JSON.parse(data) : (defaultVal ? JSON.parse(JSON.stringify(defaultVal)) : defaultVal);
       }
       const memData = this._memoryStore[this.PREFIX + key];
-      return memData !== undefined ? JSON.parse(memData) : defaultVal;
+      return memData !== undefined ? JSON.parse(memData) : (defaultVal ? JSON.parse(JSON.stringify(defaultVal)) : defaultVal);
     } catch (e) {
       console.warn("Storage read failed, returning defaults", e);
-      return defaultVal;
+      return defaultVal ? JSON.parse(JSON.stringify(defaultVal)) : defaultVal;
     }
   }
 
