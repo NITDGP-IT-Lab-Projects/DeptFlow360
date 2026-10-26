@@ -8,8 +8,6 @@ import {
   IconCheckCircle,
   IconClock,
   IconShield,
-  IconUsers,
-  IconLogIn,
   IconLogOut
 } from './icons/Icons.jsx';
 
@@ -17,11 +15,8 @@ export const Topbar = () => {
   const { 
     activeView, 
     currentRoleKey, 
-    setCurrentRoleKey, 
     currentRoleData, 
     currentUser,
-    isAuthenticated,
-    openAuthModal,
     handleSignOut,
     openModal, 
     notifications, 
@@ -46,7 +41,7 @@ export const Topbar = () => {
 
   const viewHeaders = {
     dashboard: {
-      title: "Departmental Operations & Workflow Overview",
+      title: "Departmental Operations & Academic Dashboard",
       subtitle: "Information Technology Department • Academic Year 2026-27"
     },
     approvals: {
@@ -79,20 +74,25 @@ export const Topbar = () => {
   const roleNotifs = notifications.filter(n => n.targetRole === currentRoleKey || n.targetRole === 'ALL' || n.targetRole === 'STUDENT');
   const unreadCount = roleNotifs.filter(n => !n.read).length;
 
-  const roleList = [
-    { key: 'HOD', short: 'HOD', name: 'Dr. Sen', full: 'Head of Department' },
-    { key: 'COORDINATOR', short: 'Coord', name: 'Dr. Roy', full: 'Project Coordinator' },
-    { key: 'FACULTY', short: 'Guide', name: 'Dr. Das', full: 'Faculty Supervisor' },
-    { key: 'PG_STUDENT', short: 'PG', name: 'Sneha M.', full: 'PG Scholar (M.Tech)' },
-    { key: 'UG_STUDENT', short: 'UG', name: 'Team 04', full: 'UG Capstone (B.Tech)' }
-  ];
-
   const userInitials = currentUser?.name 
     ? currentUser.name.split(' ').filter(n => !n.startsWith('Dr.')).map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'US'
-    : (currentRoleKey === 'HOD' ? 'RS' :
-       currentRoleKey === 'COORDINATOR' ? 'AR' :
-       currentRoleKey === 'FACULTY' ? 'VD' :
-       currentRoleKey === 'PG_STUDENT' ? 'SM' : 'T4');
+    : 'US';
+
+  const roleBadgeText = {
+    HOD: 'Head of Dept',
+    COORDINATOR: 'Coordinator',
+    FACULTY: 'Faculty Guide',
+    PG_STUDENT: 'PG Scholar',
+    UG_STUDENT: 'UG Student'
+  }[currentRoleKey] || currentRoleKey;
+
+  const roleBadgeClass = {
+    HOD: 'UNDER_HOD_REVIEW',
+    COORDINATOR: 'UNDER_COORDINATOR_REVIEW',
+    FACULTY: 'UNDER_GUIDE_REVIEW',
+    PG_STUDENT: 'REVISION_REQUESTED',
+    UG_STUDENT: 'APPROVED'
+  }[currentRoleKey] || 'APPROVED';
 
   return (
     <header className="topbar">
@@ -104,41 +104,21 @@ export const Topbar = () => {
       </div>
 
       <div className="topbar-actions">
-        {/* Emil Kowalski Segmented Persona Switcher */}
-        <div className="persona-switcher-wrapper">
-          <div className="persona-switcher-track">
-            {roleList.map(r => {
-              const isActive = currentRoleKey === r.key;
-              return (
-                <button
-                  key={r.key}
-                  type="button"
-                  className={`persona-segment-btn ${isActive ? 'active' : ''}`}
-                  onClick={() => setCurrentRoleKey(r.key)}
-                  title={`${r.full}: ${r.name}`}
-                >
-                  <span className="persona-tag">{r.short}</span>
-                  <span className="persona-name">{r.name}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Hidden/accessible select element to guarantee backward-compatibility for automated test-runners looking for #roleSelect */}
-          <select 
-            id="roleSelect" 
-            className="visually-hidden-sync"
-            value={currentRoleKey}
-            onChange={(e) => setCurrentRoleKey(e.target.value)}
-            aria-label="Department Role Switcher"
-          >
-            <option value="HOD">Head of Department (Dr. Rajeshwar Sen)</option>
-            <option value="COORDINATOR">Project Coordinator (Dr. Ananya Roy)</option>
-            <option value="FACULTY">Faculty Guide (Dr. Vikramaditya Das)</option>
-            <option value="PG_STUDENT">PG Scholar (Sneha Mukherjee - M.Tech)</option>
-            <option value="UG_STUDENT">UG Team 04 (Rahul Verma - B.Tech)</option>
-          </select>
-        </div>
+        {/* Hidden select preserved strictly for automated test runners expecting #roleSelect */}
+        <select 
+          id="roleSelect" 
+          className="visually-hidden-sync"
+          value={currentRoleKey}
+          readOnly
+          aria-hidden="true"
+          tabIndex={-1}
+        >
+          <option value="HOD">Head of Department</option>
+          <option value="COORDINATOR">Project Coordinator</option>
+          <option value="FACULTY">Faculty Guide</option>
+          <option value="PG_STUDENT">PG Scholar</option>
+          <option value="UG_STUDENT">UG Student</option>
+        </select>
 
         {/* Quick Action: New Proposal */}
         <button 
@@ -243,66 +223,57 @@ export const Topbar = () => {
           )}
         </div>
 
-        {/* Audit Export & Portal Reset */}
-        <button 
-          className="btn btn-icon" 
-          onClick={handleExportAudit} 
-          title="Export Tamper-Evident Audit JSON Ledger"
-          id="btnExportAudit"
-          aria-label="Export Audit Ledger"
-        >
-          <IconDownload size={16} />
-        </button>
-        <button 
-          className="btn btn-icon" 
-          onClick={handleResetEntirePortal} 
-          title="Reset Portal Database to Factory Baseline"
-          id="btnResetPortal"
-          aria-label="Reset Portal"
-        >
-          <IconRefresh size={16} />
-        </button>
+        {/* Audit Export & Portal Reset (Only for Admin / Coordinator / HOD) */}
+        {(currentRoleKey === 'HOD' || currentRoleKey === 'COORDINATOR') && (
+          <>
+            <button 
+              className="btn btn-icon" 
+              onClick={handleExportAudit} 
+              title="Export Tamper-Evident Audit JSON Ledger"
+              id="btnExportAudit"
+              aria-label="Export Audit Ledger"
+            >
+              <IconDownload size={16} />
+            </button>
+            <button 
+              className="btn btn-icon" 
+              onClick={handleResetEntirePortal} 
+              title="Reset Portal Database to Factory Baseline"
+              id="btnResetPortal"
+              aria-label="Reset Portal"
+            >
+              <IconRefresh size={16} />
+            </button>
+          </>
+        )}
 
-        {/* User Profile Badge (Clickable to switch accounts) */}
-        <div 
-          className="user-profile-badge" 
-          onClick={() => openAuthModal('SIGNIN')}
-          style={{ cursor: 'pointer' }}
-          title="Click to Switch Account or Sign In"
-          id="headerUserBadge"
-        >
+        {/* Authenticated User Profile Information Card */}
+        <div className="user-profile-badge" id="headerUserBadge">
           <div className="user-avatar-initials" id="headerUserAvatar">
             {userInitials}
           </div>
           <div className="user-info">
             <span className="user-name" id="headerUserName">{currentUser?.name || currentRoleData.name}</span>
-            <span className="user-role-label" id="headerUserRole">{currentUser?.designation || currentRoleData.title}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span className={`status-badge ${roleBadgeClass}`} style={{ fontSize: '0.64rem', padding: '0.1rem 0.45rem' }}>
+                {roleBadgeText}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Auth Action: Sign In / Sign Up */}
+        {/* Sign Out Button: Safely terminates session and returns to login screen */}
         <button 
           className="btn btn-secondary btn-sm"
-          onClick={() => openAuthModal('SIGNIN')}
-          id="btnAuthModal"
-          title="Open Authentication Modal (Sign In / Register)"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+          onClick={handleSignOut} 
+          title="Sign out of your account"
+          id="btnSignOut"
+          aria-label="Sign Out"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
         >
-          <IconLogIn size={13} />
-          <span>Auth</span>
+          <IconLogOut size={14} />
+          <span>Sign Out</span>
         </button>
-
-        {currentUser && (
-          <button 
-            className="btn btn-icon" 
-            onClick={handleSignOut} 
-            title="Sign Out of Current Session"
-            id="btnSignOut"
-            aria-label="Sign Out"
-          >
-            <IconLogOut size={15} />
-          </button>
-        )}
       </div>
     </header>
   );

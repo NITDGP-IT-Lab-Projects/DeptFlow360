@@ -3,6 +3,7 @@ import { useApp } from './context/AppContext.jsx';
 import { Sidebar } from './components/Sidebar.jsx';
 import { Topbar } from './components/Topbar.jsx';
 import { ToastContainer } from './components/Toast.jsx';
+import { AuthScreen } from './components/AuthScreen.jsx';
 
 import { DashboardView } from './components/views/DashboardView.jsx';
 import { ApprovalsView } from './components/views/ApprovalsView.jsx';
@@ -20,11 +21,21 @@ import { SanctionLetterModal } from './components/modals/SanctionLetterModal.jsx
 import { AuthModal } from './components/modals/AuthModal.jsx';
 
 export const App = () => {
-  const { activeView, activeModal } = useApp();
+  const { currentUser, activeView, activeModal } = useApp();
+
+  // If user is unauthenticated, directly display the AuthScreen at root URL
+  if (!currentUser) {
+    return (
+      <div className="auth-root-container">
+        <AuthScreen />
+        <ToastContainer />
+      </div>
+    );
+  }
 
   return (
     <div className="app-layout">
-      {/* Sidebar Navigation */}
+      {/* Sidebar Navigation (Filtered strictly by authenticated role) */}
       <Sidebar />
 
       {/* Main Content Area */}
@@ -62,7 +73,7 @@ export const App = () => {
         <SanctionLetterModal workflow={activeModal.data} />
       )}
 
-      {/* User Authentication Modal */}
+      {/* User Authentication Modal (For in-app account switching) */}
       <AuthModal />
 
       {/* Notification Toast Stack */}

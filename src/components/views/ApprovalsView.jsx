@@ -6,16 +6,36 @@ import {
   IconZap,
   IconCheckCircle,
   IconAlertCircle,
-  IconChevronRight
+  IconChevronRight,
+  IconShield,
+  IconBook
 } from '../icons/Icons.jsx';
 
 export const ApprovalsView = () => {
-  const { workflows, currentRoleKey, currentRoleData, openModal } = useApp();
+  const { workflows, currentRoleKey, currentRoleData, currentUser, openModal, setActiveView } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('ALL');
 
+  const isStudent = currentRoleKey === 'UG_STUDENT' || currentRoleKey === 'PG_STUDENT';
+  const isFaculty = currentRoleKey === 'FACULTY';
+  const isCoordinator = currentRoleKey === 'COORDINATOR';
+  const isHOD = currentRoleKey === 'HOD';
+
+  // Base pool of workflows strictly isolated by reviewer role
+  const baseWorkflows = useMemo(() => {
+    if (isHOD || isCoordinator) return workflows;
+    if (isFaculty) {
+      return workflows.filter(wf => 
+        wf.details?.proposedGuideId === currentRoleData?.id || 
+        wf.details?.allocatedGuideId === currentRoleData?.id ||
+        (currentRoleData?.name && wf.details?.guideName && wf.details.guideName.toLowerCase().includes(currentRoleData.name.toLowerCase()))
+      );
+    }
+    return [];
+  }, [workflows, isHOD, isCoordinator, isFaculty, currentRoleData]);
+
   const filteredWorkflows = useMemo(() => {
-    return workflows.filter(wf => {
+    return baseWorkflows.filter(wf => {
       // 1. Search filter
       const q = searchTerm.toLowerCase();
       const matchesSearch = !q || (
@@ -30,17 +50,9 @@ export const ApprovalsView = () => {
       if (activeFilter === 'ALL') return true;
 
       if (activeFilter === 'PENDING_ME') {
-        if (currentRoleKey === 'HOD') return wf.state === 'UNDER_HOD_REVIEW';
-        if (currentRoleKey === 'COORDINATOR') return wf.state === 'UNDER_COORDINATOR_REVIEW';
-        if (currentRoleKey === 'FACULTY') {
-          return wf.state === 'UNDER_GUIDE_REVIEW' && (
-            wf.details?.proposedGuideId === currentRoleData.id || 
-            wf.details?.allocatedGuideId === currentRoleData.id
-          );
-        }
-        if (currentRoleKey === 'UG_STUDENT' || currentRoleKey === 'PG_STUDENT') {
-          return wf.state === 'REVISION_REQUESTED' && wf.submittedBy?.id === currentRoleData.id;
-        }
+        if (isHOD) return wf.state === 'UNDER_HOD_REVIEW';
+        if (isCoordinator) return wf.state === 'UNDER_COORDINATOR_REVIEW';
+        if (isFaculty) return wf.state === 'UNDER_GUIDE_REVIEW';
         return false;
       }
 
@@ -54,7 +66,7 @@ export const ApprovalsView = () => {
 
       return true;
     });
-  }, [workflows, searchTerm, activeFilter, currentRoleKey, currentRoleData]);
+  }, [baseWorkflows, searchTerm, activeFilter, isHOD, isCoordinator, isFaculty]);
 
   const getStatusBadgeClass = (state) => {
     switch (state) {
@@ -78,6 +90,43 @@ export const ApprovalsView = () => {
       default: return state;
     }
   };
+
+  if (isStudent) {
+    return (
+      <div id="view-approvals" className="view-section active">
+        <div className="card-panel" style={{ textAlign: 'center', padding: '3.5rem 1.5rem' }}>
+          <div style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: '50%',
+            background: '#eff6ff',
+            border: '1px solid #bfdbfe',
+            color: 'var(--accent-primary)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '1rem'
+          }}>
+            <IconShield size={28} />
+          </div>
+          <h2 style={{ fontSize: '1.25rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+            Review & Sanction Authority Restricted
+          </h2>
+          <p style={{ maxWidth: '520px', margin: '0 auto 1.5rem auto', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            The Multi-Tier Approvals Inbox is restricted to supervisory and administrative roles (Faculty Guide, Coordinator, and HOD). Students can view their proposals, track approval status, and submit revisions via their dedicated Submissions Desk.
+          </p>
+          <button 
+            className="btn btn-primary" 
+            onClick={() => setActiveView('ugpg_desk')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            <IconBook size={15} />
+            <span>Go to My Submissions Desk</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div id="view-approvals" className="view-section active">

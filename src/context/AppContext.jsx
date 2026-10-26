@@ -15,7 +15,7 @@ const clientHashPassword = async (password) => {
 
 const DEFAULT_AUTH_USERS = [
   {
-    id: 'USR-HOD-01',
+    id: 'FAC-01',
     name: 'Dr. Rajeshwar Sen',
     email: 'hod.it@university.edu',
     plainPass: 'Admin@123',
@@ -23,7 +23,7 @@ const DEFAULT_AUTH_USERS = [
     designation: 'Professor & Head of Department'
   },
   {
-    id: 'USR-COORD-02',
+    id: 'FAC-02',
     name: 'Dr. Ananya Roy',
     email: 'ananya.roy@university.edu',
     plainPass: 'Coord@123',
@@ -31,7 +31,7 @@ const DEFAULT_AUTH_USERS = [
     designation: 'Associate Professor & Project Convener'
   },
   {
-    id: 'USR-FAC-03',
+    id: 'FAC-03',
     name: 'Dr. Vikramaditya Das',
     email: 'vikram.das@university.edu',
     plainPass: 'Guide@123',
@@ -39,7 +39,7 @@ const DEFAULT_AUTH_USERS = [
     designation: 'Associate Professor'
   },
   {
-    id: 'USR-PG-01',
+    id: 'PG-2025-09',
     name: 'Sneha Mukherjee',
     email: 'sneha.m@university.edu',
     plainPass: 'Student@123',
@@ -47,7 +47,7 @@ const DEFAULT_AUTH_USERS = [
     designation: 'PG Scholar (M.Tech 2nd Year)'
   },
   {
-    id: 'USR-UG-04',
+    id: 'UG-2023-TEAM-04',
     name: 'Rahul Verma (Team 04 Lead)',
     email: 'team04.lead@university.edu',
     plainPass: 'Student@123',
@@ -61,20 +61,13 @@ export const AppProvider = ({ children }) => {
   const workflowEngine = useMemo(() => new WorkflowEngine(DeptStore), []);
   const allocationEngine = useMemo(() => new AllocationEngine(DeptStore), []);
 
-  // Authentication & User State
+  // Authentication & User State (Defaults to null to force authentication at root URL)
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem('deptflow_user');
       if (saved) return JSON.parse(saved);
     } catch {}
-    // Default active persona session
-    return {
-      id: 'USR-HOD-01',
-      name: 'Dr. Rajeshwar Sen',
-      email: 'hod.it@university.edu',
-      role: 'HOD',
-      designation: 'Professor & Head of Department'
-    };
+    return null;
   });
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -117,15 +110,17 @@ export const AppProvider = ({ children }) => {
   }, [currentUser]);
 
   const currentRoleData = useMemo(() => {
+    const baseRole = INITIAL_ROLES[currentRoleKey] || INITIAL_ROLES.HOD;
     if (currentUser && currentUser.name) {
       return {
-        ...(INITIAL_ROLES[currentRoleKey] || INITIAL_ROLES.HOD),
+        ...baseRole,
+        id: currentUser.id || baseRole.id,
         name: currentUser.name,
-        title: currentUser.designation || INITIAL_ROLES[currentRoleKey]?.title || 'Academic Member',
+        title: currentUser.designation || baseRole.title || 'Academic Member',
         email: currentUser.email
       };
     }
-    return INITIAL_ROLES[currentRoleKey] || INITIAL_ROLES.HOD;
+    return baseRole;
   }, [currentRoleKey, currentUser]);
 
   // Check Backend Connection and sync data if available

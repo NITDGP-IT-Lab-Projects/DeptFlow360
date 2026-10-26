@@ -9,10 +9,64 @@ import {
 } from '../icons/Icons.jsx';
 
 export const RubricEvalView = () => {
-  const { workflows, openModal, currentRoleKey } = useApp();
+  const { workflows, openModal, currentRoleKey, currentRoleData, setActiveView } = useApp();
 
-  const evaluatableWorkflows = workflows.filter(w => w.milestones && w.milestones.length > 0);
-  const canGrade = currentRoleKey === 'FACULTY' || currentRoleKey === 'COORDINATOR' || currentRoleKey === 'HOD';
+  const isStudent = currentRoleKey === 'UG_STUDENT' || currentRoleKey === 'PG_STUDENT';
+  const isFaculty = currentRoleKey === 'FACULTY';
+  const isCoordinator = currentRoleKey === 'COORDINATOR';
+  const isHOD = currentRoleKey === 'HOD';
+
+  const canGrade = isFaculty || isCoordinator || isHOD;
+
+  // Evaluatable workflows strictly scoped to supervisor or departmental coordinators
+  const evaluatableWorkflows = workflows.filter(w => {
+    if (!w.milestones || w.milestones.length === 0) return false;
+    if (isHOD || isCoordinator) return true;
+    if (isFaculty) {
+      return (
+        w.details?.allocatedGuideId === currentRoleData?.id ||
+        w.details?.proposedGuideId === currentRoleData?.id ||
+        (currentRoleData?.name && w.details?.guideName && w.details.guideName.toLowerCase().includes(currentRoleData.name.toLowerCase()))
+      );
+    }
+    return false;
+  });
+
+  if (isStudent) {
+    return (
+      <div id="view-rubric_eval" className="view-section active">
+        <div className="card-panel" style={{ textAlign: 'center', padding: '3.5rem 1.5rem' }}>
+          <div style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: '50%',
+            background: '#eff6ff',
+            border: '1px solid #bfdbfe',
+            color: 'var(--accent-primary)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '1rem'
+          }}>
+            <IconScale size={28} />
+          </div>
+          <h2 style={{ fontSize: '1.25rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+            Defense Scoring Station Restricted
+          </h2>
+          <p style={{ maxWidth: '520px', margin: '0 auto 1.5rem auto', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            Continuous assessment scoring against ABET/NBA rubrics is restricted to appointed Faculty Guides and Defense Committee evaluators. You can review your awarded grades and feedback on your submissions desk.
+          </p>
+          <button 
+            className="btn btn-primary" 
+            onClick={() => setActiveView('ugpg_desk')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            Go to My Submissions Desk
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div id="view-rubric_eval" className="view-section active">
