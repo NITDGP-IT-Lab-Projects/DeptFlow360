@@ -82,6 +82,8 @@ jobs:
       - name: Validate Nginx Security Headers
         run: |
           HEADERS=$(curl -sI http://localhost:8080/)
+          echo "Received Headers:"
+          echo "$HEADERS"
           echo "$HEADERS" | grep -iq "X-Frame-Options: SAMEORIGIN"
           echo "$HEADERS" | grep -iq "X-Content-Type-Options: nosniff"
           echo "Nginx security headers confirmed."
