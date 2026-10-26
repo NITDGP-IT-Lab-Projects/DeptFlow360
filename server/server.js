@@ -33,8 +33,8 @@ app.use('/api/workflows', require('./routes/workflowRoutes'));
 app.use('/api/allocation', require('./routes/allocationRoutes'));
 app.use('/api/faculty', require('./routes/facultyRoutes'));
 
-// Health & System Status Endpoint
-app.get('/api/health', (req, res) => {
+// Health & System Status Endpoint (Supports both /api/health and /health)
+const handleHealthCheck = (req, res) => {
   const mongoose = require('mongoose');
   const states = ['Disconnected', 'Connected', 'Connecting', 'Disconnecting'];
   const dbState = states[mongoose.connection.readyState] || 'Unknown';
@@ -50,16 +50,22 @@ app.get('/api/health', (req, res) => {
     uptime: process.uptime(),
     timestamp: new Date().toISOString()
   });
-});
+};
+
+app.get('/api/health', handleHealthCheck);
+app.get('/health', handleHealthCheck);
 
 // Root API Greeting
-app.get('/', (req, res) => {
+const handleRootGreeting = (req, res) => {
   res.json({
     message: 'DeptFlow 360 REST API Server is running.',
     healthCheck: '/api/health',
     endpoints: ['/api/workflows', '/api/allocation', '/api/faculty']
   });
-});
+};
+
+app.get('/api', handleRootGreeting);
+app.get('/', handleRootGreeting);
 
 // 404 Handler
 app.use((req, res) => {
