@@ -17,6 +17,7 @@ export const DashboardView = () => {
     facultyList, 
     currentRoleKey, 
     currentRoleData, 
+    currentUser,
     setActiveView, 
     openModal 
   } = useApp();

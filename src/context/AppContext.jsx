@@ -173,7 +173,7 @@ export const AppProvider = ({ children }) => {
 
   useEffect(() => {
     syncWithBackend();
-    const interval = setInterval(syncWithBackend, 25000);
+    const interval = setInterval(syncWithBackend, 10000);
     return () => clearInterval(interval);
   }, [syncWithBackend]);
 
@@ -181,23 +181,23 @@ export const AppProvider = ({ children }) => {
   const handleSignIn = useCallback(async ({ email, password }) => {
     const normalizedEmail = email.toLowerCase().trim();
 
+    // 1. Try Express Backend / MongoDB Atlas first
     try {
-      if (backendOnline) {
-        const res = await api.signIn({ email: normalizedEmail, password });
-        if (res && res.success && res.user) {
-          setCurrentUser(res.user);
-          localStorage.setItem('deptflow_user', JSON.stringify(res.user));
-          setCurrentRoleKey(res.user.role);
-          setAuthModalOpen(false);
-          addToast('success', 'Sign In Successful', `Authenticated as ${res.user.name} (${res.user.role})`);
-          return res.user;
-        }
+      const res = await api.signIn({ email: normalizedEmail, password });
+      if (res && res.success && res.user) {
+        setBackendOnline(true);
+        setCurrentUser(res.user);
+        localStorage.setItem('deptflow_user', JSON.stringify(res.user));
+        setCurrentRoleKey(res.user.role);
+        setAuthModalOpen(false);
+        addToast('success', 'Sign In Successful', `Authenticated as ${res.user.name} (${res.user.role}) [Backend Synced]`);
+        return res.user;
       }
     } catch (apiErr) {
-      console.warn("API sign in failed, testing local hashed auth fallback:", apiErr.message);
+      console.warn("Backend API sign in failed or unavailable, checking local fallback:", apiErr.message);
     }
 
-    // Resilient Local Cryptographic Fallback (Matches default accounts or locally registered users)
+    // 2. Resilient Local Cryptographic Fallback (Matches default accounts or locally registered users)
     const localRegistered = DeptStore.get("REGISTERED_USERS") || [];
     const allUsers = [...DEFAULT_AUTH_USERS, ...localRegistered];
     const candidate = allUsers.find(u => u.email.toLowerCase() === normalizedEmail);
@@ -233,9 +233,9 @@ export const AppProvider = ({ children }) => {
     localStorage.setItem('deptflow_user', JSON.stringify(userObj));
     setCurrentRoleKey(userObj.role);
     setAuthModalOpen(false);
-    addToast('success', 'Sign In Successful', `Authenticated as ${userObj.name} (${userObj.role})`);
+    addToast('success', 'Sign In Successful', `Authenticated as ${userObj.name} (${userObj.role}) [Offline Mode]`);
     return userObj;
-  }, [backendOnline, addToast]);
+  }, [addToast]);
 
   const handleSignUp = useCallback(async ({ name, email, password, role, designation }) => {
     const normalizedEmail = email.toLowerCase().trim();
@@ -250,29 +250,29 @@ export const AppProvider = ({ children }) => {
       throw new Error('Password too short.');
     }
 
+    // 1. Try Express Backend / MongoDB Atlas first
     try {
-      if (backendOnline) {
-        const res = await api.signUp({
-          name,
-          email: normalizedEmail,
-          password,
-          role,
-          designation
-        });
-        if (res && res.success && res.user) {
-          setCurrentUser(res.user);
-          localStorage.setItem('deptflow_user', JSON.stringify(res.user));
-          setCurrentRoleKey(res.user.role);
-          setAuthModalOpen(false);
-          addToast('success', 'Account Registered', `Welcome to DeptFlow 360, ${res.user.name}!`);
-          return res.user;
-        }
+      const res = await api.signUp({
+        name,
+        email: normalizedEmail,
+        password,
+        role,
+        designation
+      });
+      if (res && res.success && res.user) {
+        setBackendOnline(true);
+        setCurrentUser(res.user);
+        localStorage.setItem('deptflow_user', JSON.stringify(res.user));
+        setCurrentRoleKey(res.user.role);
+        setAuthModalOpen(false);
+        addToast('success', 'Account Registered', `Welcome to DeptFlow 360, ${res.user.name}!`);
+        return res.user;
       }
     } catch (apiErr) {
-      console.warn("API sign up failed, registering in local store:", apiErr.message);
+      console.warn("Backend API sign up failed, registering in local store:", apiErr.message);
     }
 
-    // Local Fallback Registration with SHA-256 Hashing
+    // 2. Local Fallback Registration with SHA-256 Hashing
     const localRegistered = DeptStore.get("REGISTERED_USERS") || [];
     const exists = [...DEFAULT_AUTH_USERS, ...localRegistered].some(u => u.email.toLowerCase() === normalizedEmail);
 
@@ -309,7 +309,7 @@ export const AppProvider = ({ children }) => {
     setAuthModalOpen(false);
     addToast('success', 'Account Registered', `New account created for ${userObj.name} (${userObj.role}).`);
     return userObj;
-  }, [backendOnline, addToast]);
+  }, [addToast]);
 
   const handleSignOut = useCallback(() => {
     api.signOut();
@@ -332,17 +332,17 @@ export const AppProvider = ({ children }) => {
       setWorkflows([...workflowEngine.getAll()]);
       setNotifications([...workflowEngine.notifications]);
 
-      if (backendOnline) {
-        try {
-          await api.transitionWorkflow(workflowId, {
-            action: actionKey,
-            remarks: comment,
-            actorRole: currentRoleData.title || currentRoleKey,
-            actorName: currentRoleData.name
-          });
-        } catch (err) {
-          console.warn("Express backend transition sync error:", err);
-        }
+      // Sync with Express backend
+      try {
+        await api.transitionWorkflow(workflowId, {
+          action: actionKey,
+          remarks: comment,
+          actorRole: currentRoleData.title || currentRoleKey,
+          actorName: currentRoleData.name
+        });
+        setBackendOnline(true);
+      } catch (err) {
+        console.warn("Express backend transition sync error (offline or pending):", err.message);
       }
 
       addToast("success", "Workflow Updated", `Action ${actionKey} successfully committed to audit ledger.`);
@@ -351,7 +351,7 @@ export const AppProvider = ({ children }) => {
       addToast("danger", "Transition Failed", err.message);
       throw err;
     }
-  }, [workflowEngine, currentRoleKey, currentRoleData, backendOnline, addToast]);
+  }, [workflowEngine, currentRoleKey, currentRoleData, addToast]);
 
   const handleCreateWorkflow = useCallback(async (payload) => {
     try {
@@ -359,22 +359,22 @@ export const AppProvider = ({ children }) => {
       setWorkflows([...workflowEngine.getAll()]);
       setNotifications([...workflowEngine.notifications]);
 
-      if (backendOnline) {
-        try {
-          await api.createWorkflow({
-            ...payload,
-            submittedBy: {
-              id: currentRoleData.id || currentUser?.id,
-              name: currentRoleData.name,
-              rollNo: currentRoleData.rollNo || "N/A",
-              email: currentRoleData.email || `${currentRoleData.name.toLowerCase().replace(/\s+/g, ".")}@university.edu`,
-              degree: currentRoleData.title || "Student",
-              teamMembers: payload.teamMembers || [currentRoleData.name]
-            }
-          });
-        } catch (err) {
-          console.warn("Express backend create sync error:", err);
-        }
+      // Sync with Express backend
+      try {
+        await api.createWorkflow({
+          ...payload,
+          submittedBy: {
+            id: currentRoleData.id || currentUser?.id,
+            name: currentRoleData.name,
+            rollNo: currentRoleData.rollNo || "N/A",
+            email: currentRoleData.email || `${currentRoleData.name.toLowerCase().replace(/\s+/g, ".")}@university.edu`,
+            degree: currentRoleData.title || "Student",
+            teamMembers: payload.teamMembers || [currentRoleData.name]
+          }
+        });
+        setBackendOnline(true);
+      } catch (err) {
+        console.warn("Express backend create sync error (offline or pending):", err.message);
       }
 
       addToast("success", "Proposal Dispatched", `Request ${newWf.id} has entered the approval pipeline.`);
@@ -567,6 +567,7 @@ export const AppProvider = ({ children }) => {
     addToast,
     removeToast,
     handleTransition,
+    handleWorkflowTransition: handleTransition,
     handleCreateWorkflow,
     handleEvaluateMilestone,
     handleRunAllocation,

@@ -84,16 +84,21 @@ app.use((err, req, res, next) => {
 
 // Initialize Database & Start Server
 const startServer = async () => {
-  const dbConnected = await connectDB();
-  if (dbConnected) {
-    await autoSeedDatabase();
-  } else {
-    console.warn('⚠️ Server starting in degraded mode: MongoDB connection pending. Ensure MONGODB_URI is set in .env.');
-  }
-
+  // Start HTTP listener immediately so Nginx reverse proxy and container probes don't encounter 502/refused errors
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 DeptFlow 360 Express Backend running on http://0.0.0.0:${PORT}`);
     console.log(`📡 Cross-device access enabled across local network.`);
+  });
+
+  // Connect to MongoDB Atlas asynchronously without blocking HTTP listener
+  connectDB().then(async (dbConnected) => {
+    if (dbConnected) {
+      await autoSeedDatabase();
+    } else {
+      console.warn('⚠️ Server running in degraded mode: MongoDB connection pending. Ensure MONGODB_URI is set in .env.');
+    }
+  }).catch((err) => {
+    console.error('❌ Database connection error on startup:', err.message);
   });
 };
 
