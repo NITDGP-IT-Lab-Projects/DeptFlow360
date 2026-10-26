@@ -8,7 +8,9 @@ import {
   IconCheckCircle,
   IconClock,
   IconShield,
-  IconUsers
+  IconUsers,
+  IconLogIn,
+  IconLogOut
 } from './icons/Icons.jsx';
 
 export const Topbar = () => {
@@ -17,6 +19,10 @@ export const Topbar = () => {
     currentRoleKey, 
     setCurrentRoleKey, 
     currentRoleData, 
+    currentUser,
+    isAuthenticated,
+    openAuthModal,
+    handleSignOut,
     openModal, 
     notifications, 
     markAllNotificationsRead,
@@ -80,6 +86,13 @@ export const Topbar = () => {
     { key: 'PG_STUDENT', short: 'PG', name: 'Sneha M.', full: 'PG Scholar (M.Tech)' },
     { key: 'UG_STUDENT', short: 'UG', name: 'Team 04', full: 'UG Capstone (B.Tech)' }
   ];
+
+  const userInitials = currentUser?.name 
+    ? currentUser.name.split(' ').filter(n => !n.startsWith('Dr.')).map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'US'
+    : (currentRoleKey === 'HOD' ? 'RS' :
+       currentRoleKey === 'COORDINATOR' ? 'AR' :
+       currentRoleKey === 'FACULTY' ? 'VD' :
+       currentRoleKey === 'PG_STUDENT' ? 'SM' : 'T4');
 
   return (
     <header className="topbar">
@@ -250,19 +263,46 @@ export const Topbar = () => {
           <IconRefresh size={16} />
         </button>
 
-        {/* User Profile Badge */}
-        <div className="user-profile-badge">
+        {/* User Profile Badge (Clickable to switch accounts) */}
+        <div 
+          className="user-profile-badge" 
+          onClick={() => openAuthModal('SIGNIN')}
+          style={{ cursor: 'pointer' }}
+          title="Click to Switch Account or Sign In"
+          id="headerUserBadge"
+        >
           <div className="user-avatar-initials" id="headerUserAvatar">
-            {currentRoleKey === 'HOD' ? 'RS' :
-             currentRoleKey === 'COORDINATOR' ? 'AR' :
-             currentRoleKey === 'FACULTY' ? 'VD' :
-             currentRoleKey === 'PG_STUDENT' ? 'SM' : 'T4'}
+            {userInitials}
           </div>
           <div className="user-info">
-            <span className="user-name" id="headerUserName">{currentRoleData.name}</span>
-            <span className="user-role-label" id="headerUserRole">{currentRoleData.title}</span>
+            <span className="user-name" id="headerUserName">{currentUser?.name || currentRoleData.name}</span>
+            <span className="user-role-label" id="headerUserRole">{currentUser?.designation || currentRoleData.title}</span>
           </div>
         </div>
+
+        {/* Auth Action: Sign In / Sign Up */}
+        <button 
+          className="btn btn-secondary btn-sm"
+          onClick={() => openAuthModal('SIGNIN')}
+          id="btnAuthModal"
+          title="Open Authentication Modal (Sign In / Register)"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+        >
+          <IconLogIn size={13} />
+          <span>Auth</span>
+        </button>
+
+        {currentUser && (
+          <button 
+            className="btn btn-icon" 
+            onClick={handleSignOut} 
+            title="Sign Out of Current Session"
+            id="btnSignOut"
+            aria-label="Sign Out"
+          >
+            <IconLogOut size={15} />
+          </button>
+        )}
       </div>
     </header>
   );

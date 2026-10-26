@@ -188,3 +188,26 @@ The system incorporates a **Priority & Preference Matching Engine** with constra
 2. **Faculty Capacities**: Hard caps on UG teams (e.g., max 3) and PG scholars (e.g., max 2).
 3. **Merit & Domain Alignment**: CGPA weighting + domain synergy score.
 4. **Resolution Mechanism**: When over-subscribed, highest merit wins choice; secondary choices receive deterministic cascade; coordinator possesses manual override capability with audit justification.
+
+---
+
+## 6. User Authentication & Authorization Architecture
+
+### 6.1 Cryptographic Password Security
+- **Algorithm**: Passwords are never stored in plaintext. They are salted with a 16-byte cryptographically secure pseudo-random salt and hashed using **bcrypt** (cost factor 10) or NIST SP 800-132 compliant **PBKDF2-HMAC-SHA512** (100,000 iterations).
+- **Verification**: Timing-safe comparisons (`crypto.timingSafeEqual`) prevent side-channel timing attacks during password validation.
+
+### 6.2 Session Management & Bearer JWT
+- **Token Format**: Standard RFC 7519 JSON Web Tokens signed with HMAC-SHA256 (`HS256`).
+- **Payload**: Contains subject identity (`id`, `name`, `email`), assigned academic `role`, and `designation`.
+- **Validation**: Enforced via `protect` Express middleware and decoded Bearer headers on all mutating and protected endpoints.
+
+### 6.3 Pre-Seeded Default Verification Accounts
+| Role | User Account Name | Institutional Email | Default Password | Initial Quota / Scope |
+|---|---|---|---|---|
+| **HOD** | Dr. Rajeshwar Sen | `hod.it@university.edu` | `Admin@123` | Department-wide final sanction authority |
+| **Coordinator** | Dr. Ananya Roy | `ananya.roy@university.edu` | `Coord@123` | Project allocation & quota management |
+| **Faculty Guide** | Dr. Vikramaditya Das | `vikram.das@university.edu` | `Guide@123` | Proposal endorsement & rubric grading |
+| **PG Scholar** | Sneha Mukherjee | `sneha.m@university.edu` | `Student@123` | M.Tech dissertation submissions |
+| **UG Student** | Rahul Verma (Team 04) | `team04.lead@university.edu` | `Student@123` | B.Tech capstone team track |
+

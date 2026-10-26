@@ -29,6 +29,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('dev'));
 
 // API Routes
+app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/workflows', require('./routes/workflowRoutes'));
 app.use('/api/allocation', require('./routes/allocationRoutes'));
 app.use('/api/faculty', require('./routes/facultyRoutes'));
@@ -60,7 +61,7 @@ const handleRootGreeting = (req, res) => {
   res.json({
     message: 'DeptFlow 360 REST API Server is running.',
     healthCheck: '/api/health',
-    endpoints: ['/api/workflows', '/api/allocation', '/api/faculty']
+    endpoints: ['/api/auth', '/api/workflows', '/api/allocation', '/api/faculty']
   });
 };
 
