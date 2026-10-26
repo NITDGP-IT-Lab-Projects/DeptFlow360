@@ -1,5 +1,15 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext.jsx';
+import {
+  IconFileText,
+  IconClock,
+  IconCheckCircle,
+  IconUsers,
+  IconZap,
+  IconActivity,
+  IconChevronRight,
+  IconArrowRight
+} from '../icons/Icons.jsx';
 
 export const DashboardView = () => {
   const { 
@@ -62,27 +72,29 @@ export const DashboardView = () => {
       });
     }
   });
-  auditEvents.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  const recentAudit = auditEvents.slice(0, 6);
 
-  // Dynamic Directive Banner content
+  const recentAudit = auditEvents
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 6);
+
+  // Role directives configuration
   const directive = {
     HOD: {
-      title: `Head of Department Authority • ${pendingActionCount} Pending Clearances`,
-      desc: `You have final executive sanctioning powers. ${pendingActionCount} item(s) are awaiting your formal sign-off.`,
-      btnText: "Review Pending Clearances",
+      title: `Executive Authority Desk • ${pendingActionCount} Clearances Pending`,
+      desc: `You have final departmental sign-off authority. ${pendingActionCount} proposal(s) currently await your formal sanction.`,
+      btnText: "Review Clearances",
       action: () => setActiveView('approvals')
     },
     COORDINATOR: {
-      title: "Project Coordinator Desk • Allocation & Quota Oversight",
+      title: "Project Coordinator Desk • Allocation & Quota Engine",
       desc: "Supervise UG/PG capstone tracks, verify supervisor quotas, and execute automated Gale-Shapley matching.",
       btnText: "Manage Project Allocation",
       action: () => setActiveView('allocation')
     },
     FACULTY: {
-      title: `Faculty Guide Desk • ${currentRoleData.name}`,
-      desc: "Review supervisee proposals, grade defense milestones against ABET/NBA rubrics, and provide feedback.",
-      btnText: "Open Rubric Station",
+      title: `Faculty Guide Station • ${currentRoleData.name}`,
+      desc: "Review supervisee proposals, grade defense milestones against ABET/NBA rubrics, and record feedback.",
+      btnText: "Open Defense Station",
       action: () => setActiveView('rubric_eval')
     },
     PG_STUDENT: {
@@ -127,20 +139,32 @@ export const DashboardView = () => {
     }
   };
 
+  // SVG Radial Meter calculation
+  const radius = 22;
+  const circumference = 2 * Math.PI * radius;
+  const quotaStrokeDashoffset = circumference - (quotaLoadPercent / 100) * circumference;
+
   return (
     <div id="view-dashboard" className="view-section active">
       {/* Role Directive Callout */}
       <div className="role-directive-banner">
         <div className="role-directive-content">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <span className="live-pill">
+              <span className="live-pill-dot"></span> Active Session
+            </span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Role: {currentRoleKey}</span>
+          </div>
           <h2 id="directiveTitle">{directive.title}</h2>
           <p id="directiveDesc">{directive.desc}</p>
         </div>
-        <button className="btn btn-primary" id="directiveActionBtn" onClick={directive.action}>
-          {directive.btnText}
+        <button className="btn btn-primary" id="directiveActionBtn" onClick={directive.action} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span>{directive.btnText}</span>
+          <IconArrowRight size={14} />
         </button>
       </div>
 
-      {/* KPI Metric Cards */}
+      {/* Emil Kowalski KPI Metric Cards with Precision Gauges */}
       <div className="kpi-grid">
         <div className="kpi-card">
           <div className="kpi-info">
@@ -148,7 +172,9 @@ export const DashboardView = () => {
             <div className="kpi-value" id="kpiTotalWorkflows">{totalWorkflows}</div>
             <div className="kpi-meta">Active departmental tracks</div>
           </div>
-          <div className="kpi-icon-badge indigo">📋</div>
+          <div className="kpi-icon-badge indigo">
+            <IconFileText size={20} />
+          </div>
         </div>
 
         <div className="kpi-card">
@@ -159,7 +185,9 @@ export const DashboardView = () => {
             </div>
             <div className="kpi-meta">Awaiting your approval tier</div>
           </div>
-          <div className="kpi-icon-badge amber">⏳</div>
+          <div className="kpi-icon-badge amber">
+            <IconClock size={20} />
+          </div>
         </div>
 
         <div className="kpi-card">
@@ -170,7 +198,9 @@ export const DashboardView = () => {
             </div>
             <div className="kpi-meta">Passed HOD final clearance</div>
           </div>
-          <div className="kpi-icon-badge emerald">✅</div>
+          <div className="kpi-icon-badge emerald">
+            <IconCheckCircle size={20} />
+          </div>
         </div>
 
         <div className="kpi-card">
@@ -179,9 +209,32 @@ export const DashboardView = () => {
             <div className="kpi-value" id="kpiQuotaLoad" style={{ color: 'var(--accent-cyan)' }}>
               {quotaLoadPercent}%
             </div>
-            <div className="kpi-meta">Department capacity utilized</div>
+            <div className="kpi-meta">{totalUsedQuota} of {totalMaxQuota} slots assigned</div>
           </div>
-          <div className="kpi-icon-badge cyan">👥</div>
+          {/* Circular SVG Gauge Meter */}
+          <div className="kpi-gauge-wrap">
+            <svg width="56" height="56" viewBox="0 0 56 56" className="kpi-gauge-svg">
+              <circle
+                cx="28"
+                cy="28"
+                r={radius}
+                className="kpi-gauge-bg"
+              />
+              <circle
+                cx="28"
+                cy="28"
+                r={radius}
+                className="kpi-gauge-progress"
+                style={{
+                  strokeDasharray: circumference,
+                  strokeDashoffset: quotaStrokeDashoffset
+                }}
+              />
+            </svg>
+            <div className="kpi-gauge-icon">
+              <IconUsers size={16} />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -190,9 +243,13 @@ export const DashboardView = () => {
         {/* Left: Quick Action Table */}
         <div className="card-panel">
           <div className="card-panel-header">
-            <h2>⚡ Pending & Relevant Approvals</h2>
-            <button className="btn btn-secondary btn-sm" onClick={() => setActiveView('approvals')}>
-              View All In Inbox →
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <IconZap size={18} className="text-amber" />
+              <h2>Pending & Relevant Approvals</h2>
+            </div>
+            <button className="btn btn-secondary btn-sm" onClick={() => setActiveView('approvals')} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <span>View All</span>
+              <IconChevronRight size={13} />
             </button>
           </div>
           <div className="table-responsive">
@@ -210,7 +267,7 @@ export const DashboardView = () => {
               <tbody id="dashboardQuickTableBody">
                 {relevantWorkflows.length === 0 ? (
                   <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
                       No active workflows matching current role
                     </td>
                   </tr>
@@ -235,8 +292,9 @@ export const DashboardView = () => {
                         </span>
                       </td>
                       <td>
-                        <span style={{ fontSize: '0.8rem', color: wf.slaDaysRemaining <= 2 ? 'var(--status-rejected)' : 'var(--text-secondary)' }}>
-                          ⏱️ {wf.slaDaysRemaining}d left
+                        <span className="sla-pill" style={{ color: wf.slaDaysRemaining <= 2 ? 'var(--status-rejected)' : 'var(--text-secondary)' }}>
+                          <IconClock size={12} />
+                          <span>{wf.slaDaysRemaining}d left</span>
                         </span>
                       </td>
                       <td>
@@ -258,27 +316,34 @@ export const DashboardView = () => {
         {/* Right: Activity Feed */}
         <div className="card-panel">
           <div className="card-panel-header">
-            <h2>📜 Departmental Audit Stream</h2>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Real-time Ledger</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <IconActivity size={18} className="text-cyan" />
+              <h2>Departmental Audit Stream</h2>
+            </div>
+            <span className="live-pill">
+              <span className="live-pill-dot"></span> Live
+            </span>
           </div>
           <div className="audit-timeline" id="recentActivityList">
             {recentAudit.length === 0 ? (
-              <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1rem' }}>
+              <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
                 No audit events recorded yet
               </div>
             ) : (
               recentAudit.map((event, idx) => (
                 <div key={idx} className="timeline-item">
-                  <div className="timeline-icon">📝</div>
+                  <div className="timeline-icon">
+                    <IconActivity size={14} />
+                  </div>
                   <div className="timeline-content">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <strong style={{ fontSize: '0.82rem', color: '#fff' }}>{event.action}</strong>
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{event.timestamp}</span>
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', marginTop: '2px' }}>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--accent-cyan)', marginTop: '2px', fontWeight: 500 }}>
                       [{event.workflowId}] {event.actorName} ({event.actorRole})
                     </div>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '4px 0 0 0', lineHeight: 1.45 }}>
                       {event.comment}
                     </p>
                   </div>

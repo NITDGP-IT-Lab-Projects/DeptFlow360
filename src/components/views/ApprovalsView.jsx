@@ -1,5 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
+import {
+  IconSearch,
+  IconClock,
+  IconZap,
+  IconCheckCircle,
+  IconAlertCircle,
+  IconChevronRight
+} from '../icons/Icons.jsx';
 
 export const ApprovalsView = () => {
   const { workflows, currentRoleKey, currentRoleData, openModal } = useApp();
@@ -76,7 +84,7 @@ export const ApprovalsView = () => {
       <div className="card-panel">
         <div className="table-toolbar">
           <div className="search-box">
-            <span>🔍</span>
+            <IconSearch size={16} className="search-icon" />
             <input 
               type="text" 
               id="workflowSearchInput"
@@ -89,23 +97,24 @@ export const ApprovalsView = () => {
           <div className="filter-pills">
             {[
               { id: 'ALL', label: 'All Records' },
-              { id: 'PENDING_ME', label: '⚡ Needs My Action' },
+              { id: 'PENDING_ME', label: 'Needs My Action', icon: <IconZap size={13} className="text-amber" /> },
               { id: 'UNDER_REVIEW', label: 'In Review' },
               { id: 'UG', label: 'UG Capstones' },
               { id: 'PG', label: 'PG Dissertations' },
-              { id: 'APPROVED', label: 'Sanctioned' }
+              { id: 'APPROVED', label: 'Sanctioned', icon: <IconCheckCircle size={13} className="text-emerald" /> }
             ].map(pill => (
               <button
                 key={pill.id}
                 className={`filter-pill ${activeFilter === pill.id ? 'active' : ''}`}
                 onClick={() => setActiveFilter(pill.id)}
               >
+                {pill.icon && <span style={{ marginRight: '5px', display: 'inline-flex', verticalAlign: 'middle' }}>{pill.icon}</span>}
                 {pill.label}
               </button>
             ))}
           </div>
 
-          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }} id="approvalsCountBadge">
+          <span className="record-counter-badge" id="approvalsCountBadge">
             {filteredWorkflows.length} record{filteredWorkflows.length !== 1 ? 's' : ''}
           </span>
         </div>
@@ -125,8 +134,10 @@ export const ApprovalsView = () => {
             <tbody id="approvalsTableBody">
               {filteredWorkflows.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-                    No matching workflows found in inbox.
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '3.5rem 1rem', color: 'var(--text-muted)' }}>
+                    <IconAlertCircle size={28} style={{ margin: '0 auto 10px auto', opacity: 0.4 }} />
+                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>No matching workflows found</div>
+                    <div style={{ fontSize: '0.78rem', marginTop: '4px' }}>Try clearing filters or search terms</div>
                   </td>
                 </tr>
               ) : (
@@ -150,8 +161,9 @@ export const ApprovalsView = () => {
                       </span>
                     </td>
                     <td>
-                      <span style={{ fontSize: '0.8rem', color: wf.slaDaysRemaining <= 2 ? 'var(--status-rejected)' : 'var(--text-secondary)' }}>
-                        ⏱️ {wf.slaDaysRemaining}d remaining
+                      <span className="sla-pill" style={{ color: wf.slaDaysRemaining <= 2 ? 'var(--status-rejected)' : 'var(--text-secondary)' }}>
+                        <IconClock size={12} />
+                        <span>{wf.slaDaysRemaining}d remaining</span>
                       </span>
                     </td>
                     <td>
