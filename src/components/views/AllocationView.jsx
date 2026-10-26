@@ -18,10 +18,13 @@ export const AllocationView = () => {
     handleRunAllocation, 
     handleResetAllocations, 
     openModal,
-    currentRoleKey 
+    currentRoleKey,
+    currentUser,
+    currentRoleData
   } = useApp();
 
   const canOverride = currentRoleKey === 'COORDINATOR' || currentRoleKey === 'HOD';
+  const isStudent = currentRoleKey === 'UG_STUDENT' || currentRoleKey === 'PG_STUDENT';
 
   return (
     <div id="view-allocation" className="view-section active">
@@ -42,24 +45,32 @@ export const AllocationView = () => {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <button 
-            className="btn btn-primary" 
-            onClick={handleRunAllocation}
-            id="btnRunAllocation"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
-          >
-            <IconZap size={15} />
-            <span>Run Automated Matcher</span>
-          </button>
-          <button 
-            className="btn btn-secondary" 
-            onClick={handleResetAllocations}
-            id="btnResetAllocation"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
-          >
-            <IconRefresh size={14} />
-            <span>Revert Baseline</span>
-          </button>
+          {canOverride ? (
+            <>
+              <button 
+                className="btn btn-primary" 
+                onClick={handleRunAllocation}
+                id="btnRunAllocation"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
+              >
+                <IconZap size={15} />
+                <span>Run Automated Matcher</span>
+              </button>
+              <button 
+                className="btn btn-secondary" 
+                onClick={handleResetAllocations}
+                id="btnResetAllocation"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
+              >
+                <IconRefresh size={14} />
+                <span>Revert Baseline</span>
+              </button>
+            </>
+          ) : (
+            <span className="status-badge APPROVED" style={{ fontSize: '0.78rem', padding: '0.4rem 0.85rem' }}>
+              ✓ Stable Matching Finalized
+            </span>
+          )}
         </div>
       </div>
 
@@ -172,11 +183,24 @@ export const AllocationView = () => {
             <tbody id="allocationTeamsTableBody">
               {teamsList.map(team => {
                 const guide = facultyList.find(f => f.id === team.allocatedGuideId);
+                const isMyTeam = isStudent && (
+                  team.teamId === currentRoleData?.teamId ||
+                  (currentUser?.name && team.leadName?.toLowerCase().includes(currentUser.name.toLowerCase())) ||
+                  (currentUser?.email && team.leadEmail === currentUser.email)
+                );
 
                 return (
-                  <tr key={team.teamId}>
+                  <tr 
+                    key={team.teamId}
+                    style={isMyTeam ? { background: '#f0f9ff', outline: '2px solid var(--accent-primary)', outlineOffset: '-2px' } : {}}
+                  >
                     <td>
-                      <strong style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>{team.teamId}</strong>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <strong style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>{team.teamId}</strong>
+                        {isMyTeam && (
+                          <span className="live-pill" style={{ padding: '0.1rem 0.4rem', fontSize: '0.62rem' }}>You</span>
+                        )}
+                      </div>
                       <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
                         Lead: {team.leadName}
                       </div>

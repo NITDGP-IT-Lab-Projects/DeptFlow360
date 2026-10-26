@@ -21,47 +21,72 @@ export const DashboardView = () => {
     openModal 
   } = useApp();
 
-  // Metrics calculation
-  const totalWorkflows = workflows.length;
+  const isStudent = currentRoleKey === 'UG_STUDENT' || currentRoleKey === 'PG_STUDENT';
+  const isFaculty = currentRoleKey === 'FACULTY';
+  const isCoordinator = currentRoleKey === 'COORDINATOR';
+  const isHOD = currentRoleKey === 'HOD';
 
-  const pendingActionCount = workflows.filter(w => {
-    if (currentRoleKey === 'HOD') return w.state === 'UNDER_HOD_REVIEW';
-    if (currentRoleKey === 'COORDINATOR') return w.state === 'UNDER_COORDINATOR_REVIEW';
-    if (currentRoleKey === 'FACULTY') {
-      return w.state === 'UNDER_GUIDE_REVIEW' && (
-        w.details?.proposedGuideId === currentRoleData.id || 
-        w.details?.allocatedGuideId === currentRoleData.id
-      );
-    }
-    if (currentRoleKey === 'UG_STUDENT' || currentRoleKey === 'PG_STUDENT') {
-      return w.state === 'REVISION_REQUESTED' && w.submittedBy?.id === currentRoleData.id;
-    }
+  // Helper to verify if workflow belongs to the authenticated user
+  const isMySubmission = (w) => {
+    if (!w || !w.submittedBy) return false;
+    if (currentUser?.email && w.submittedBy.email && w.submittedBy.email.toLowerCase() === currentUser.email.toLowerCase()) return true;
+    if (currentUser?.name && w.submittedBy.name && w.submittedBy.name.toLowerCase() === currentUser.name.toLowerCase()) return true;
+    if (currentRoleData?.id && w.submittedBy.id === currentRoleData.id) return true;
+    return false;
+  };
+
+  // Helper to verify if workflow is supervised by current faculty member
+  const isMySupervision = (w) => {
+    if (!w || !w.details) return false;
+    if (w.details.allocatedGuideId && (w.details.allocatedGuideId === currentRoleData?.id || w.details.allocatedGuideId === currentUser?.id)) return true;
+    if (w.details.proposedGuideId && (w.details.proposedGuideId === currentRoleData?.id || w.details.proposedGuideId === currentUser?.id)) return true;
+    if (currentRoleData?.name && w.details.guideName && w.details.guideName.toLowerCase().includes(currentRoleData.name.toLowerCase())) return true;
+    return false;
+  };
+
+  // Scoped workflows strictly by authenticated user role
+  const scopedWorkflows = workflows.filter(w => {
+    if (isHOD || isCoordinator) return true;
+    if (isFaculty) return isMySupervision(w);
+    if (isStudent) return isMySubmission(w);
+    return false;
+  });
+
+  // Metrics calculation
+  const totalWorkflows = scopedWorkflows.length;
+
+  const pendingActionCount = scopedWorkflows.filter(w => {
+    if (isHOD) return w.state === 'UNDER_HOD_REVIEW';
+    if (isCoordinator) return w.state === 'UNDER_COORDINATOR_REVIEW';
+    if (isFaculty) return w.state === 'UNDER_GUIDE_REVIEW';
+    if (isStudent) return w.state === 'REVISION_REQUESTED';
     return false;
   }).length;
 
-  const approvedCount = workflows.filter(w => w.state === 'APPROVED').length;
+  const approvedCount = scopedWorkflows.filter(w => w.state === 'APPROVED').length;
 
-  // Calculate quota load
+  // Faculty specific quota metrics
+  const myFacultyRecord = facultyList.find(f => 
+    f.id === currentRoleData?.id || 
+    f.name === currentRoleData?.name ||
+    f.email === currentUser?.email
+  );
+
+  // Department-wide Quota load
   const totalMaxQuota = facultyList.reduce((acc, f) => acc + (f.ugQuotaMax || 0) + (f.pgQuotaMax || 0), 0);
   const totalUsedQuota = facultyList.reduce((acc, f) => acc + (f.ugQuotaCurrent || 0) + (f.pgQuotaCurrent || 0), 0);
   const quotaLoadPercent = totalMaxQuota > 0 ? Math.round((totalUsedQuota / totalMaxQuota) * 100) : 0;
 
-  // Filter relevant workflows for quick table
-  const relevantWorkflows = workflows.filter(w => {
-    if (currentRoleKey === 'HOD') return true;
-    if (currentRoleKey === 'COORDINATOR') return true;
-    if (currentRoleKey === 'FACULTY') {
-      return w.details?.allocatedGuideId === currentRoleData.id || 
-             w.details?.proposedGuideId === currentRoleData.id ||
-             w.submittedBy?.id === currentRoleData.id ||
-             w.category === 'DEPARTMENTAL';
-    }
-    return w.submittedBy?.id === currentRoleData.id;
-  }).slice(0, 5);
+  // Student specific mentor info
+  const mySubmission = isStudent ? scopedWorkflows[0] : null;
+  const myAllocatedGuideName = mySubmission?.details?.guideName || mySubmission?.details?.allocatedGuideId || 'Pending Allocation';
 
-  // Compile audit events from all workflows
+  // Filter relevant workflows for quick table (Strictly isolated)
+  const relevantWorkflows = scopedWorkflows.slice(0, 5);
+
+  // Compile audit events ONLY from workflows the user has permission to see
   const auditEvents = [];
-  workflows.forEach(w => {
+  scopedWorkflows.forEach(w => {
     if (w.history && Array.isArray(w.history)) {
       w.history.forEach(h => {
         auditEvents.push({
@@ -168,9 +193,11 @@ export const DashboardView = () => {
       <div className="kpi-grid">
         <div className="kpi-card">
           <div className="kpi-info">
-            <h3>Total Workflows</h3>
+            <h3>{isStudent ? 'My Submissions' : isFaculty ? 'Supervised Projects' : 'Total Workflows'}</h3>
             <div className="kpi-value" id="kpiTotalWorkflows">{totalWorkflows}</div>
-            <div className="kpi-meta">Active departmental tracks</div>
+            <div className="kpi-meta">
+              {isStudent ? 'Active proposal tracks' : isFaculty ? 'Under active mentorship' : 'Active departmental tracks'}
+            </div>
           </div>
           <div className="kpi-icon-badge indigo">
             <IconFileText size={20} />
@@ -179,11 +206,13 @@ export const DashboardView = () => {
 
         <div className="kpi-card">
           <div className="kpi-info">
-            <h3>Action Required</h3>
+            <h3>{isStudent ? 'Revisions Required' : isFaculty ? 'Awaiting Endorsement' : 'Action Required'}</h3>
             <div className="kpi-value" id="kpiPendingAction" style={{ color: 'var(--status-pending)' }}>
               {pendingActionCount}
             </div>
-            <div className="kpi-meta">Awaiting your approval tier</div>
+            <div className="kpi-meta">
+              {isStudent ? 'Requires your resubmission' : isFaculty ? 'Awaiting your guide sign-off' : 'Awaiting your approval tier'}
+            </div>
           </div>
           <div className="kpi-icon-badge amber">
             <IconClock size={20} />
@@ -192,11 +221,13 @@ export const DashboardView = () => {
 
         <div className="kpi-card">
           <div className="kpi-info">
-            <h3>Sanctioned Projects</h3>
+            <h3>{isStudent ? 'Sanctioned Proposals' : isFaculty ? 'Sanctioned Supervisees' : 'Sanctioned Projects'}</h3>
             <div className="kpi-value" id="kpiApproved" style={{ color: 'var(--status-approved)' }}>
               {approvedCount}
             </div>
-            <div className="kpi-meta">Passed HOD final clearance</div>
+            <div className="kpi-meta">
+              {isStudent ? 'Cleared all review stages' : 'Passed HOD final clearance'}
+            </div>
           </div>
           <div className="kpi-icon-badge emerald">
             <IconCheckCircle size={20} />
@@ -204,37 +235,71 @@ export const DashboardView = () => {
         </div>
 
         <div className="kpi-card">
-          <div className="kpi-info">
-            <h3>Faculty Quota Load</h3>
-            <div className="kpi-value" id="kpiQuotaLoad" style={{ color: 'var(--accent-cyan)' }}>
-              {quotaLoadPercent}%
-            </div>
-            <div className="kpi-meta">{totalUsedQuota} of {totalMaxQuota} slots assigned</div>
-          </div>
-          {/* Circular SVG Gauge Meter */}
-          <div className="kpi-gauge-wrap">
-            <svg width="56" height="56" viewBox="0 0 56 56" className="kpi-gauge-svg">
-              <circle
-                cx="28"
-                cy="28"
-                r={radius}
-                className="kpi-gauge-bg"
-              />
-              <circle
-                cx="28"
-                cy="28"
-                r={radius}
-                className="kpi-gauge-progress"
-                style={{
-                  strokeDasharray: circumference,
-                  strokeDashoffset: quotaStrokeDashoffset
-                }}
-              />
-            </svg>
-            <div className="kpi-gauge-icon">
-              <IconUsers size={16} />
-            </div>
-          </div>
+          {isStudent ? (
+            <>
+              <div className="kpi-info">
+                <h3>Allocated Mentor</h3>
+                <div className="kpi-value" id="kpiQuotaLoad" style={{ fontSize: '1.05rem', color: 'var(--accent-primary)', paddingTop: '4px' }}>
+                  {myAllocatedGuideName}
+                </div>
+                <div className="kpi-meta">
+                  {mySubmission?.details?.domain ? `Domain: ${mySubmission.details.domain}` : 'Assigned Faculty Guide'}
+                </div>
+              </div>
+              <div className="kpi-icon-badge emerald">
+                <IconUsers size={20} />
+              </div>
+            </>
+          ) : isFaculty ? (
+            <>
+              <div className="kpi-info">
+                <h3>My Supervisory Quota</h3>
+                <div className="kpi-value" id="kpiQuotaLoad" style={{ color: 'var(--accent-cyan)' }}>
+                  {(myFacultyRecord?.ugQuotaCurrent || 0) + (myFacultyRecord?.pgQuotaCurrent || 0)} / {(myFacultyRecord?.ugQuotaMax || 0) + (myFacultyRecord?.pgQuotaMax || 0)}
+                </div>
+                <div className="kpi-meta">
+                  {myFacultyRecord?.ugQuotaCurrent || 0}/{myFacultyRecord?.ugQuotaMax || 0} UG • {myFacultyRecord?.pgQuotaCurrent || 0}/{myFacultyRecord?.pgQuotaMax || 0} PG
+                </div>
+              </div>
+              <div className="kpi-icon-badge indigo">
+                <IconUsers size={20} />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="kpi-info">
+                <h3>Faculty Quota Load</h3>
+                <div className="kpi-value" id="kpiQuotaLoad" style={{ color: 'var(--accent-cyan)' }}>
+                  {quotaLoadPercent}%
+                </div>
+                <div className="kpi-meta">{totalUsedQuota} of {totalMaxQuota} slots assigned</div>
+              </div>
+              {/* Circular SVG Gauge Meter */}
+              <div className="kpi-gauge-wrap">
+                <svg width="56" height="56" viewBox="0 0 56 56" className="kpi-gauge-svg">
+                  <circle
+                    cx="28"
+                    cy="28"
+                    r={radius}
+                    className="kpi-gauge-bg"
+                  />
+                  <circle
+                    cx="28"
+                    cy="28"
+                    r={radius}
+                    className="kpi-gauge-progress"
+                    style={{
+                      strokeDasharray: circumference,
+                      strokeDashoffset: quotaStrokeDashoffset
+                    }}
+                  />
+                </svg>
+                <div className="kpi-gauge-icon">
+                  <IconUsers size={16} />
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -245,10 +310,14 @@ export const DashboardView = () => {
           <div className="card-panel-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <IconZap size={18} className="text-amber" />
-              <h2>Pending & Relevant Approvals</h2>
+              <h2>{isStudent ? 'My Submissions Status' : 'Pending & Relevant Approvals'}</h2>
             </div>
-            <button className="btn btn-secondary btn-sm" onClick={() => setActiveView('approvals')} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-              <span>View All</span>
+            <button 
+              className="btn btn-secondary btn-sm" 
+              onClick={() => setActiveView(isStudent ? 'ugpg_desk' : 'approvals')} 
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+            >
+              <span>{isStudent ? 'My Desk' : 'View All'}</span>
               <IconChevronRight size={13} />
             </button>
           </div>
@@ -268,7 +337,10 @@ export const DashboardView = () => {
                 {relevantWorkflows.length === 0 ? (
                   <tr>
                     <td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
-                      No active workflows matching current role
+                      {isStudent 
+                        ? 'No active submissions found. Click "New Request" to submit your capstone or dissertation proposal.'
+                        : 'No active workflows matching current role'
+                      }
                     </td>
                   </tr>
                 ) : (
@@ -302,7 +374,7 @@ export const DashboardView = () => {
                           className="btn btn-primary btn-sm"
                           onClick={() => openModal('DETAIL', wf)}
                         >
-                          Review
+                          {isStudent ? 'View Status' : 'Review'}
                         </button>
                       </td>
                     </tr>
@@ -318,7 +390,7 @@ export const DashboardView = () => {
           <div className="card-panel-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <IconActivity size={18} className="text-cyan" />
-              <h2>Departmental Audit Stream</h2>
+              <h2>{isStudent ? 'My Submission Audit History' : isFaculty ? 'Supervisory Review Stream' : 'Departmental Audit Stream'}</h2>
             </div>
             <span className="live-pill">
               <span className="live-pill-dot"></span> Live
@@ -327,7 +399,7 @@ export const DashboardView = () => {
           <div className="audit-timeline" id="recentActivityList">
             {recentAudit.length === 0 ? (
               <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
-                No audit events recorded yet
+                {isStudent ? 'No audit history recorded for your submission yet' : 'No audit events recorded yet'}
               </div>
             ) : (
               recentAudit.map((event, idx) => (

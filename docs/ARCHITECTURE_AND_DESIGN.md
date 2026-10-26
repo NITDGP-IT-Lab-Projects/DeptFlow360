@@ -211,3 +211,11 @@ The system incorporates a **Priority & Preference Matching Engine** with constra
 | **PG Scholar** | Sneha Mukherjee | `sneha.m@university.edu` | `Student@123` | M.Tech dissertation submissions |
 | **UG Student** | Rahul Verma (Team 04) | `team04.lead@university.edu` | `Student@123` | B.Tech capstone team track |
 
+### 6.4 Authentication Gating, Switcher Elimination & Data Privacy
+- **Root Entry Gating**: Access to `http://localhost:8080/` with no active session unconditionally renders a full-screen `AuthScreen`. The internal layout (`Sidebar`, `Topbar`, `DashboardView`) is never mounted for unauthenticated sessions.
+- **Elimination of Arbitrary Persona Switcher**: Topbar persona-switch buttons (`.persona-switcher-track`) have been permanently removed. Active role state is bound strictly to the authenticated credentials stored in session tokens.
+- **Strict Data Isolation**:
+  - **Students (UG/PG)**: Isolated to viewing their own submitted proposals and milestones. Blocked from accessing the Multi-Tier Approvals Inbox, Defense Rubrics grading station, and Departmental Quota management. Gale-Shapley algorithm execution controls are hidden and restricted to Coordinator and HOD.
+  - **Faculty Guides**: Scoped strictly to candidate proposals and milestones where they are the appointed or proposed guide.
+  - **Audit Isolation**: Departmental audit trails viewed by students only display chronological events pertaining to their own proposal tracking ID.
+

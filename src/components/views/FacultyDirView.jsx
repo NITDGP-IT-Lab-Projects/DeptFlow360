@@ -7,7 +7,31 @@ import {
 } from '../icons/Icons.jsx';
 
 export const FacultyDirView = () => {
-  const { facultyList, teamsList } = useApp();
+  const { facultyList, teamsList, currentRoleKey, setActiveView } = useApp();
+
+  const isStudent = currentRoleKey === 'UG_STUDENT' || currentRoleKey === 'PG_STUDENT';
+
+  if (isStudent) {
+    return (
+      <div id="view-faculty_dir" className="view-section active">
+        <div className="card-panel" style={{ textAlign: 'center', padding: '3.5rem 1.5rem' }}>
+          <h2 style={{ fontSize: '1.25rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+            Faculty Directory Management Restricted
+          </h2>
+          <p style={{ maxWidth: '520px', margin: '0 auto 1.5rem auto', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            Supervisory quota management is restricted to Departmental Administrators. Please refer to Project Allotment for faculty mentor choices and bidding.
+          </p>
+          <button 
+            className="btn btn-primary" 
+            onClick={() => setActiveView('allocation')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            <span>Go to Project Allotment</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div id="view-faculty_dir" className="view-section active">

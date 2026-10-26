@@ -2,11 +2,43 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
 
 export const WorkflowDetailModal = ({ workflow }) => {
-  const { closeModal, openModal, currentRoleKey, currentRoleData, handleWorkflowTransition } = useApp();
+  const { closeModal, openModal, currentRoleKey, currentRoleData, currentUser, handleWorkflowTransition } = useApp();
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   if (!workflow) return null;
+
+  const isStudent = currentRoleKey === 'UG_STUDENT' || currentRoleKey === 'PG_STUDENT';
+  const isMySubmission = (
+    (currentRoleData?.id && workflow.submittedBy?.id === currentRoleData.id) || 
+    (currentUser?.email && workflow.submittedBy?.email?.toLowerCase() === currentUser.email.toLowerCase()) ||
+    (currentUser?.name && workflow.submittedBy?.name?.toLowerCase() === currentUser.name.toLowerCase())
+  );
+
+  // Data isolation: Block students from inspecting proposals of other students
+  if (isStudent && !isMySubmission) {
+    return (
+      <div className="modal-overlay active">
+        <div className="modal-dialog">
+          <div className="modal-header">
+            <h2 style={{ color: 'var(--text-primary)', fontSize: '1.1rem' }}>Access Denied</h2>
+            <button className="modal-close" onClick={closeModal}>&times;</button>
+          </div>
+          <div className="modal-body" style={{ textAlign: 'center', padding: '2.5rem 1rem' }}>
+            <div style={{ color: 'var(--status-rejected)', fontSize: '0.9rem', fontWeight: 600, marginBottom: '8px' }}>
+              Confidential Submission Track
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.84rem', margin: 0, lineHeight: 1.5 }}>
+              You do not have authorization to view this submission. Academic privacy controls restrict each student to their own submissions.
+            </p>
+          </div>
+          <div className="modal-footer">
+            <button className="btn btn-secondary" onClick={closeModal}>Close</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Stepper state representation
   const steps = [
@@ -39,7 +71,8 @@ export const WorkflowDetailModal = ({ workflow }) => {
     );
   } else if (currentRoleKey === 'FACULTY' && workflow.state === 'UNDER_GUIDE_REVIEW') {
     const isProposedGuide = workflow.details?.proposedGuideId === currentRoleData.id || 
-                            workflow.details?.allocatedGuideId === currentRoleData.id;
+                            workflow.details?.allocatedGuideId === currentRoleData.id ||
+                            (currentRoleData?.name && workflow.details?.guideName && workflow.details.guideName.toLowerCase().includes(currentRoleData.name.toLowerCase()));
     if (isProposedGuide) {
       availableActions.push(
         { key: 'GUIDE_ENDORSE', label: 'Endorse & Forward to Coordinator', variant: 'primary' },
@@ -47,8 +80,8 @@ export const WorkflowDetailModal = ({ workflow }) => {
         { key: 'REJECT', label: 'Decline Mentorship', variant: 'danger' }
       );
     }
-  } else if ((currentRoleKey === 'UG_STUDENT' || currentRoleKey === 'PG_STUDENT') && workflow.state === 'REVISION_REQUESTED') {
-    if (workflow.submittedBy?.id === currentRoleData.id) {
+  } else if (isStudent && workflow.state === 'REVISION_REQUESTED') {
+    if (isMySubmission) {
       availableActions.push(
         { key: 'STUDENT_RESUBMIT', label: 'Submit Revised Proposal', variant: 'primary' }
       );
@@ -235,12 +268,14 @@ export const WorkflowDetailModal = ({ workflow }) => {
 
         <div className="modal-footer">
           <button className="btn btn-secondary" onClick={closeModal}>Close</button>
-          <button 
-            className="btn btn-primary"
-            onClick={() => openModal('SANCTION', workflow)}
-          >
-            📄 Generate Sanction Letter
-          </button>
+          {workflow.state === 'APPROVED' && (
+            <button 
+              className="btn btn-primary"
+              onClick={() => openModal('SANCTION', workflow)}
+            >
+              📄 View Sanction Letter
+            </button>
+          )}
         </div>
       </div>
     </div>

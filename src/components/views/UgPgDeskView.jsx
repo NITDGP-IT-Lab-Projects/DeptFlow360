@@ -9,9 +9,38 @@ import {
 } from '../icons/Icons.jsx';
 
 export const UgPgDeskView = () => {
-  const { workflows, openModal } = useApp();
+  const { workflows, openModal, currentRoleKey, currentRoleData, currentUser } = useApp();
 
-  const studentWorkflows = workflows.filter(w => w.category === 'UG' || w.category === 'PG');
+  const isStudent = currentRoleKey === 'UG_STUDENT' || currentRoleKey === 'PG_STUDENT';
+  const isFaculty = currentRoleKey === 'FACULTY';
+  const isCoordinator = currentRoleKey === 'COORDINATOR';
+  const isHOD = currentRoleKey === 'HOD';
+
+  // Helper to verify if workflow belongs to authenticated student
+  const isMySubmission = (w) => {
+    if (!w || !w.submittedBy) return false;
+    if (currentUser?.email && w.submittedBy.email && w.submittedBy.email.toLowerCase() === currentUser.email.toLowerCase()) return true;
+    if (currentUser?.name && w.submittedBy.name && w.submittedBy.name.toLowerCase() === currentUser.name.toLowerCase()) return true;
+    if (currentRoleData?.id && w.submittedBy.id === currentRoleData.id) return true;
+    return false;
+  };
+
+  // Helper to verify if workflow is supervised by current faculty member
+  const isMySupervision = (w) => {
+    if (!w || !w.details) return false;
+    if (w.details.allocatedGuideId && (w.details.allocatedGuideId === currentRoleData?.id || w.details.allocatedGuideId === currentUser?.id)) return true;
+    if (w.details.proposedGuideId && (w.details.proposedGuideId === currentRoleData?.id || w.details.proposedGuideId === currentUser?.id)) return true;
+    if (currentRoleData?.name && w.details.guideName && w.details.guideName.toLowerCase().includes(currentRoleData.name.toLowerCase())) return true;
+    return false;
+  };
+
+  const studentWorkflows = workflows.filter(w => {
+    if (w.category !== 'UG' && w.category !== 'PG') return false;
+    if (isHOD || isCoordinator) return true;
+    if (isFaculty) return isMySupervision(w);
+    if (isStudent) return isMySubmission(w);
+    return false;
+  });
 
   const getStatusBadgeClass = (state) => {
     switch (state) {
@@ -41,10 +70,13 @@ export const UgPgDeskView = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h2 style={{ fontFamily: 'var(--font-heading)', color: 'var(--text-primary)', fontSize: '1.2rem', marginBottom: '4px' }}>
-            Academic Submissions & Project Lifecycle
+            {isStudent ? 'My Academic Submissions & Milestones' : 'Academic Submissions & Project Lifecycle'}
           </h2>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-            Manage active B.Tech Capstone or M.Tech Dissertation tracks, monitor multi-tier approvals, and track milestone grades
+            {isStudent 
+              ? 'Track your project proposal, guide endorsement, and continuous assessment milestone outcomes'
+              : 'Manage active B.Tech Capstone or M.Tech Dissertation tracks, monitor multi-tier approvals, and track milestone grades'
+            }
           </p>
         </div>
         <button 
@@ -61,7 +93,12 @@ export const UgPgDeskView = () => {
         {studentWorkflows.length === 0 ? (
           <div className="card-panel" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
             <IconBook size={28} style={{ margin: '0 auto 10px auto', opacity: 0.4 }} />
-            <div>No student project tracks currently registered.</div>
+            <div>
+              {isStudent 
+                ? 'You have not submitted any project proposals yet. Click "Submit Proposal / Application" above to begin.'
+                : 'No student project tracks currently registered under your review scope.'
+              }
+            </div>
           </div>
         ) : (
           studentWorkflows.map(wf => (
