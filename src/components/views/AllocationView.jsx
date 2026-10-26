@@ -47,9 +47,20 @@ export const AllocationView = () => {
       {/* Simulation Console Output */}
       {simulationLogs && simulationLogs.length > 0 && (
         <div id="simulationConsoleOutput" className="simulation-console" style={{ marginTop: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
-            <span style={{ color: '#4ade80', fontWeight: 700 }}>🖥️ Gale-Shapley Matcher Terminal Trace</span>
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Deterministic Deferred-Acceptance</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.6rem', marginBottom: '0.85rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444', display: 'inline-block' }}></span>
+                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }}></span>
+                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
+              </div>
+              <span style={{ color: '#4ade80', fontWeight: 700, fontSize: '0.82rem', fontFamily: 'var(--font-mono)' }}>
+                gale-shapley@deptflow360:~$ match --priority=cgpa
+              </span>
+            </div>
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', fontFamily: 'var(--font-mono)' }}>
+              STATUS: OPTIMAL_STABLE
+            </span>
           </div>
           {simulationLogs.map((log, index) => (
             <div key={index} style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: log.includes('Match successful') ? '#4ade80' : log.includes('FULL') ? '#f59e0b' : '#cbd5e1' }}>
