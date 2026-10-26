@@ -1,6 +1,6 @@
 /**
  * DEPARTMENTAL ACTIVITY & WORKFLOW MANAGEMENT SYSTEM (DAWMS)
- * Syntax & Static Asset Integrity Checker
+ * Syntax & Static Asset Integrity Checker (Vite + React Architecture)
  * Run with: node tests/syntax-check.js
  */
 
@@ -10,18 +10,35 @@ const vm = require('vm');
 
 const rootDir = path.resolve(__dirname, '..');
 
-console.log('🔍 Running DAWMS Static Asset & Syntax Integrity Check...\n');
+console.log('🔍 Running DAWMS React & Engine Integrity Check...\n');
 
 let hasErrors = false;
 
-// 1. Check critical files existence
+// 1. Check critical workspace files existence
 const requiredFiles = [
   'index.html',
+  'package.json',
+  'vite.config.mjs',
   'css/styles.css',
+  'src/main.jsx',
+  'src/App.jsx',
+  'src/services/api.js',
+  'src/context/AppContext.jsx',
+  'src/engine/data.js',
+  'src/engine/workflowEngine.js',
+  'src/engine/allocationEngine.js',
+  'src/components/Sidebar.jsx',
+  'src/components/Topbar.jsx',
+  'src/components/views/DashboardView.jsx',
+  'src/components/views/ApprovalsView.jsx',
+  'src/components/views/AllocationView.jsx',
+  'src/components/views/UgPgDeskView.jsx',
+  'src/components/views/RubricEvalView.jsx',
+  'src/components/views/FacultyDirView.jsx',
+  'src/components/views/ArchitectureView.jsx',
   'js/data.js',
   'js/workflowEngine.js',
   'js/allocationEngine.js',
-  'js/app.js',
   'docs/ARCHITECTURE_AND_DESIGN.md',
   'README.md'
 ];
@@ -38,13 +55,12 @@ requiredFiles.forEach(fileRel => {
   }
 });
 
-// 2. Validate JavaScript Syntax using Node.js VM compiler
+// 2. Validate JavaScript Syntax using Node.js VM compiler (for standard JS files)
 console.log('\nValidating JavaScript syntax:');
 const jsFiles = [
   'js/data.js',
   'js/workflowEngine.js',
   'js/allocationEngine.js',
-  'js/app.js',
   'server/server.js',
   'server/config/db.js',
   'server/models/Workflow.js',
@@ -72,7 +88,7 @@ jsFiles.forEach(jsRel => {
   }
 });
 
-// 3. Verify index.html contains necessary tags
+// 3. Verify index.html contains necessary tags for Vite React SPA
 console.log('\nValidating index.html structure:');
 const indexPath = path.join(rootDir, 'index.html');
 const indexHtml = fs.readFileSync(indexPath, 'utf8');
@@ -82,10 +98,8 @@ const checks = [
   { tag: '<html lang="en">', desc: 'HTML Lang' },
   { tag: '<meta charset="UTF-8">', desc: 'UTF-8 Charset' },
   { tag: 'css/styles.css', desc: 'Stylesheet link' },
-  { tag: 'js/data.js', desc: 'Data module script tag' },
-  { tag: 'js/workflowEngine.js', desc: 'Workflow engine script tag' },
-  { tag: 'js/allocationEngine.js', desc: 'Allocation engine script tag' },
-  { tag: 'js/app.js', desc: 'App controller script tag' }
+  { tag: 'src/main.jsx', desc: 'Vite React root entry point' },
+  { tag: 'DeptFlow 360', desc: 'Branding meta & title' }
 ];
 
 checks.forEach(chk => {

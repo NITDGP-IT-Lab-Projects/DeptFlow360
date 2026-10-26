@@ -1,24 +1,42 @@
 # ==============================================================================
 # DeptFlow 360 - Departmental Activity & Workflow Management System
-# Production-Hardened Nginx Alpine Dockerfile
+# Multi-Stage Production Nginx Alpine Dockerfile for React SPA
 # ==============================================================================
 
+# Stage 1: Build React Application
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy dependency manifests
+COPY package.json ./
+
+# Install build dependencies
+RUN npm install
+
+# Copy application assets and source code
+COPY . .
+
+# Compile production bundle to /app/dist
+RUN npm run build
+
+# Stage 2: Production Nginx Server
 FROM nginx:alpine
 
 LABEL maintainer="IT Department Engineering Lab" \
-      version="1.0.0" \
-      description="DeptFlow 360 - Departmental Workflow & Project Allocation Suite"
+      version="2.0.0" \
+      description="DeptFlow 360 - Departmental Workflow & Project Allocation Suite (React SPA)"
 
-# Remove default nginx static assets and configs
+# Clean default nginx static assets and configs
 RUN rm -rf /usr/share/nginx/html/* /etc/nginx/conf.d/*
 
 # Copy custom Nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy web application assets
-COPY index.html /usr/share/nginx/html/
-COPY css/ /usr/share/nginx/html/css/
-COPY js/ /usr/share/nginx/html/js/
+# Copy compiled React application from builder stage
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy docs for reference
 COPY docs/ /usr/share/nginx/html/docs/
 
 # Enforce secure read-only permissions on static files

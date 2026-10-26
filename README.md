@@ -83,29 +83,56 @@ The top header provides an instant **Role Switcher** allowing examiners and user
 
 ```
 d:/Technical/Sem7_IT_Lab/Project7/
-├── index.html                   # High-polish Single Page Application layout & viewports
+├── index.html                   # High-polish Vite HTML entry point & viewport mounting root
+├── vite.config.mjs              # Vite bundler configuration with React plugin and /api proxy
+├── package.json                 # Project dependencies (React 18, Vite), scripts & engine specs
 ├── css/
 │   └── styles.css               # Modern dark slate & glassmorphism CSS design system
-├── js/
-│   ├── data.js                  # Initial seed records (Faculty, Teams, Workflows, Rubrics) & DeptStore
-│   ├── workflowEngine.js        # Deterministic state machine, RBAC guards, and notifications
-│   ├── allocationEngine.js      # Gale-Shapley preference matching & quota manager
-│   └── app.js                   # Application coordinator, view transitions, and interactive modals
-├── Dockerfile                   # Production Nginx Alpine container specification with HEALTHCHECK
-├── docker-compose.yml           # Container orchestration with port mapping & healthcheck
-├── nginx.conf                   # Hardened Nginx config (gzip, security headers, /healthz, SPA routing)
-├── .dockerignore                # Build context exclusion rules
-├── package.json                 # Test & CI execution scripts
-├── tests/
-│   ├── workflowEngine.test.js   # Unit tests for WorkflowEngine, RBAC & rubrics
-│   ├── allocationEngine.test.js # Unit tests for Gale-Shapley matching & quota guards
-│   └── syntax-check.js          # Static asset & JavaScript syntax integrity validator
-├── .github/
-│   └── workflows/
-│       └── ci.yml               # GitHub Actions CI matrix testing (Node 18/20/22) + Docker healthcheck
-├── docs/
-│   └── ARCHITECTURE_AND_DESIGN.md # Detailed technical specification & UML/State diagrams
-└── README.md                    # Project documentation & Lab Viva Voce reference
+├── src/
+│   ├── main.jsx                 # React DOM createRoot entry point
+│   ├── App.jsx                  # Main SPA layout coordinator, view switcher & modals
+│   ├── context/
+│   │   └── AppContext.jsx       # Reactive role switcher, state machine context & API sync
+│   ├── services/
+│   │   └── api.js               # Express backend REST client with fallback to local seed data
+│   ├── engine/                  # Core deterministic logic engines (ES modules)
+│   │   ├── data.js              # Faculty, student teams, workflows, and evaluation rubrics
+│   │   ├── workflowEngine.js    # Finite state machine & audit trail engine
+│   │   └── allocationEngine.js  # Gale-Shapley preference-based matching engine
+│   └── components/
+│       ├── Sidebar.jsx          # Glassmorphic sidebar navigation & backend sync status
+│       ├── Topbar.jsx           # Role switchboard, new request trigger & notification popover
+│       ├── Toast.jsx            # Animated toast alert notification stack
+│       ├── views/               # Dynamic responsive viewports
+│       │   ├── DashboardView.jsx    # Authority directives, KPI cards & live audit stream
+│       │   ├── ApprovalsView.jsx    # Multi-tier inbox with domain filtering & SLA meters
+│       │   ├── AllocationView.jsx   # Quota progress bars, live matcher console & overrides
+│       │   ├── UgPgDeskView.jsx     # Student project tracks & milestone defenses
+│       │   ├── RubricEvalView.jsx   # ABET/NBA continuous scoring sliders (3 dimensions)
+│       │   ├── FacultyDirView.jsx   # Faculty directory, research domains & advisee lists
+│       │   └── ArchitectureView.jsx # Finite state automaton diagram & RBAC capability matrix
+│       └── modals/              # Interactive dialogs & wizards
+│           ├── WorkflowDetailModal.jsx # Visual stepper progress & audit timeline
+│           ├── NewSubmissionModal.jsx  # Proposal dispatch form
+│           ├── RubricScoringModal.jsx  # Interactive criteria sliders & letter grade
+│           ├── ManualOverrideModal.jsx # Mentor reassignment dialog with justification
+│           └── SanctionLetterModal.jsx # University memorandum order with print/PDF
+├── server/                      # Express REST API & MongoDB Atlas Backend
+│   ├── server.js                # Express application listening on 0.0.0.0:5000
+│   ├── config/db.js             # Mongoose connection to MongoDB Atlas
+│   ├── models/                  # Workflow, Faculty, ProjectTeam, Notification schemas
+│   ├── controllers/             # REST controllers for workflows, allocation & faculty
+│   ├── routes/                  # Express routing modules (/api/workflows, /api/allocation, etc.)
+│   ├── seed/seedData.js         # Auto-seeding script for fresh Atlas clusters
+│   └── Dockerfile               # Production Node 20 Alpine backend container
+├── Dockerfile                   # Multi-stage Dockerfile (Node 20 builder -> Nginx Alpine runtime)
+├── docker-compose.yml           # Multi-container orchestration (backend + frontend)
+├── nginx.conf                   # Hardened Nginx reverse proxy with /healthz and /api routing
+├── .github/workflows/ci.yml     # GitHub Actions CI matrix testing (Node 18/20/22) & container tests
+└── tests/                       # Unit tests & syntax verification suite
+    ├── workflowEngine.test.js   # Unit tests for WorkflowEngine, RBAC & rubrics
+    ├── allocationEngine.test.js # Unit tests for Gale-Shapley matching & quota guards
+    └── syntax-check.js          # Static asset, React structure & JavaScript syntax validator
 ```
 
 ---
