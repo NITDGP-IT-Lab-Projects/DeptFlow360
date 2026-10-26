@@ -42,6 +42,11 @@ export const RubricScoringModal = ({ workflow, milestone }) => {
     }
   };
 
+  const getTrackBackground = (val, max) => {
+    const pct = (val / max) * 100;
+    return `linear-gradient(to right, #6366f1 0%, #06b6d4 ${pct}%, rgba(255,255,255,0.08) ${pct}%, rgba(255,255,255,0.08) 100%)`;
+  };
+
   return (
     <div className="modal-overlay active">
       <div className="modal-dialog">
@@ -58,12 +63,12 @@ export const RubricScoringModal = ({ workflow, milestone }) => {
         <div className="modal-body">
           <div id="rubricCriteriaContainer" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             {/* Criterion 1 */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>
                   1. Literature Survey & Problem Formulation (Max 30)
                 </span>
-                <strong style={{ color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>
+                <strong style={{ color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>
                   {litScore} / 30
                 </strong>
               </div>
@@ -73,17 +78,21 @@ export const RubricScoringModal = ({ workflow, milestone }) => {
                 max="30" 
                 value={litScore} 
                 onChange={(e) => setLitScore(e.target.value)}
-                style={{ width: '100%', accentColor: 'var(--accent-primary)' }}
+                style={{
+                  background: getTrackBackground(litScore, 30),
+                  height: '8px',
+                  borderRadius: '999px'
+                }}
               />
             </div>
 
             {/* Criterion 2 */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>
                   2. Technical Rigor & Mathematical Architecture (Max 40)
                 </span>
-                <strong style={{ color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>
+                <strong style={{ color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>
                   {rigorScore} / 40
                 </strong>
               </div>
@@ -93,17 +102,21 @@ export const RubricScoringModal = ({ workflow, milestone }) => {
                 max="40" 
                 value={rigorScore} 
                 onChange={(e) => setRigorScore(e.target.value)}
-                style={{ width: '100%', accentColor: 'var(--accent-primary)' }}
+                style={{
+                  background: getTrackBackground(rigorScore, 40),
+                  height: '8px',
+                  borderRadius: '999px'
+                }}
               />
             </div>
 
             {/* Criterion 3 */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>
                   3. Viva Voce Demonstration & Q&A (Max 30)
                 </span>
-                <strong style={{ color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>
+                <strong style={{ color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>
                   {oralScore} / 30
                 </strong>
               </div>
@@ -113,39 +126,50 @@ export const RubricScoringModal = ({ workflow, milestone }) => {
                 max="30" 
                 value={oralScore} 
                 onChange={(e) => setOralScore(e.target.value)}
-                style={{ width: '100%', accentColor: 'var(--accent-primary)' }}
+                style={{
+                  background: getTrackBackground(oralScore, 30),
+                  height: '8px',
+                  borderRadius: '999px'
+                }}
               />
             </div>
           </div>
 
-          {/* Composite Score Card */}
+          {/* Composite Score Card with Fluid Grade Morph */}
           <div style={{
-            background: 'rgba(99,102,241,0.1)',
+            background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(6,182,212,0.06))',
             border: '1px solid var(--border-accent)',
-            borderRadius: 'var(--radius-md)',
-            padding: '1rem',
+            borderRadius: 'var(--radius-lg)',
+            padding: '1.25rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            margin: '1.25rem 0'
+            boxShadow: 'var(--inner-highlight)'
           }}>
             <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                Composite Score:
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Composite ABET / NBA Outcome Score
               </div>
-              <div id="rubricTotalDisplay" style={{ fontFamily: 'var(--font-mono)', fontSize: '1.6rem', fontWeight: 800, color: '#fff' }}>
-                {totalScore} / 100
+              <div id="rubricTotalDisplay" style={{ fontFamily: 'var(--font-mono)', fontSize: '1.85rem', fontWeight: 900, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                {totalScore} <span style={{ fontSize: '1rem', color: 'var(--text-muted)', fontWeight: 500 }}>/ 100</span>
               </div>
             </div>
             <div>
-              <span id="rubricGradeBadge" style={{ fontWeight: 700, fontSize: '0.95rem', color: gradeInfo.color }}>
+              <span id="rubricGradeBadge" className="status-badge" style={{
+                fontWeight: 800,
+                fontSize: '0.9rem',
+                color: gradeInfo.color,
+                background: 'rgba(255,255,255,0.04)',
+                border: `1px solid ${gradeInfo.color}`,
+                padding: '0.4rem 0.9rem'
+              }}>
                 {gradeInfo.label}
               </span>
             </div>
           </div>
 
           <div className="form-group">
-            <label>Qualitative Examiner Feedback:</label>
+            <label>Qualitative Examiner Feedback & Defense Remarks:</label>
             <input 
               type="text" 
               className="form-control" 
@@ -164,7 +188,7 @@ export const RubricScoringModal = ({ workflow, milestone }) => {
             disabled={submitting}
             onClick={handleSave}
           >
-            {submitting ? 'Saving...' : 'Save Assessment'}
+            {submitting ? 'Committing...' : 'Commit Assessment Outcome'}
           </button>
         </div>
       </div>

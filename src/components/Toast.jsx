@@ -8,15 +8,21 @@ export const ToastContainer = () => {
 
   return (
     <div className="toast-container" id="toastContainer">
-      {toasts.map(toast => {
-        const icon = toast.type === 'success' ? '✅' :
-                     toast.type === 'danger' ? '❌' :
-                     toast.type === 'warning' ? '⚠️' : 'ℹ️';
+      {toasts.map((toast, index) => {
+        const icon = toast.type === 'success' ? '✨' :
+                     toast.type === 'danger' ? '⛔' :
+                     toast.type === 'warning' ? '⚡' : 'ℹ️';
 
         return (
-          <div key={toast.id} className={`toast-card toast-${toast.type || 'info'}`}>
-            <span className="toast-icon">{icon}</span>
-            <div className="toast-body">
+          <div 
+            key={toast.id} 
+            className={`toast-card toast-${toast.type || 'info'}`}
+            style={{
+              animationDelay: `${index * 40}ms`
+            }}
+          >
+            <span className="toast-icon" style={{ fontSize: '1.15rem' }}>{icon}</span>
+            <div className="toast-body" style={{ flex: 1 }}>
               <div className="toast-title">{toast.title}</div>
               <div className="toast-desc">{toast.message}</div>
             </div>
