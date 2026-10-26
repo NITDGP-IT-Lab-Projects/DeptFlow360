@@ -3,7 +3,8 @@
  * Connects React UI to Express Backend with resilient offline fallback
  */
 
-const API_BASE = '/api';
+const PRIMARY_API = '/api';
+const DIRECT_BACKEND_API = 'http://localhost:5000/api';
 
 let cachedToken = null;
 
@@ -45,10 +46,10 @@ export const clearAuthToken = () => {
 };
 
 /**
- * Helper to execute fetch requests with timeout, Bearer token, and error handling
+ * Execute a single HTTP request with timeout and safe JSON handling
  */
-async function apiRequest(endpoint, options = {}) {
-  const url = `${API_BASE}${endpoint}`;
+async function executeRequest(baseUrl, endpoint, options = {}) {
+  const url = `${baseUrl}${endpoint}`;
   const token = getAuthToken();
 
   const headers = {
@@ -60,17 +61,55 @@ async function apiRequest(endpoint, options = {}) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const config = {
-    ...options,
-    headers
-  };
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-  const response = await fetch(url, config);
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || `HTTP ${response.status}: Request failed`);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers,
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    let data;
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      data = { error: text || `HTTP ${response.status}: Request failed` };
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || data.message || `HTTP ${response.status}: Request failed`);
+    }
+
+    return data;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
   }
-  return data;
+}
+
+/**
+ * Helper to execute fetch requests with automatic fallback (Primary /api -> Direct http://localhost:5000/api)
+ */
+async function apiRequest(endpoint, options = {}) {
+  try {
+    return await executeRequest(PRIMARY_API, endpoint, options);
+  } catch (primaryErr) {
+    // If running in development or outside nginx proxy, try direct backend port 5000
+    if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+      try {
+        return await executeRequest(DIRECT_BACKEND_API, endpoint, options);
+      } catch {
+        // Fall through to throw primaryErr
+      }
+    }
+    throw primaryErr;
+  }
 }
 
 export const api = {
