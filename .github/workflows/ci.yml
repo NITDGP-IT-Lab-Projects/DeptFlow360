@@ -61,16 +61,17 @@ jobs:
       - name: Launch Application Stack via Docker Compose
         run: |
           docker compose up -d --build
+          sleep 3
 
       - name: Verify Frontend Web Server Health (/healthz)
         run: |
           echo "Probing container health endpoint..."
-          curl --fail --retry 15 --retry-delay 2 --retry-connrefused http://localhost:8080/healthz
+          curl --fail --retry 20 --retry-delay 2 --retry-all-errors --retry-connrefused http://localhost:8080/healthz
 
       - name: Verify Backend API Reverse Proxy (/api/health)
         run: |
           echo "Probing backend API health endpoint through Nginx..."
-          curl --fail --retry 15 --retry-delay 2 --retry-all-errors --retry-connrefused http://localhost:8080/api/health
+          curl --fail --retry 20 --retry-delay 2 --retry-all-errors --retry-connrefused http://localhost:8080/api/health
 
       - name: Verify Application Serves HTTP 200 & Correct Content
         run: |
