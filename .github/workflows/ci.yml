@@ -2,7 +2,7 @@ name: DeptFlow 360 CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, master, develop, 'release/**' ]
+    branches: [ main, master, develop, 'version*', 'release/**' ]
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
@@ -31,11 +31,17 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: Install Dependencies
+        run: npm install
+
       - name: Validate Syntax & Static Asset Integrity
         run: npm run test:syntax
 
       - name: Run Core Logic Unit Tests (Workflow & Allocation Engines)
         run: npm test
+
+      - name: Build React Production SPA Bundle
+        run: npm run build
 
   # ============================================================================
   # JOB 2: Docker Build & Live Container Health Check

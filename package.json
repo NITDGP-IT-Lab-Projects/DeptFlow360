@@ -1,15 +1,27 @@
 {
   "name": "deptflow-360",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Departmental Activity & Workflow Management System (DAWMS) - IT Engineering Lab",
-  "main": "index.html",
   "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
     "test": "node --test tests/*.test.js",
     "test:syntax": "node tests/syntax-check.js",
-    "ci": "node tests/syntax-check.js && node --test tests/*.test.js"
+    "ci": "node tests/syntax-check.js && node --test tests/*.test.js && vite build"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.3.1"
   },
   "keywords": [
     "workflow",
+    "react",
+    "vite",
     "departmental-erp",
     "project-allocation",
     "gale-shapley",
