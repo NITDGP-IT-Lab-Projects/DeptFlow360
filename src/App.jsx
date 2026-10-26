@@ -17,6 +17,7 @@ import { NewSubmissionModal } from './components/modals/NewSubmissionModal.jsx';
 import { RubricScoringModal } from './components/modals/RubricScoringModal.jsx';
 import { ManualOverrideModal } from './components/modals/ManualOverrideModal.jsx';
 import { SanctionLetterModal } from './components/modals/SanctionLetterModal.jsx';
+import { AuthModal } from './components/modals/AuthModal.jsx';
 
 export const App = () => {
   const { activeView, activeModal } = useApp();
@@ -60,6 +61,9 @@ export const App = () => {
       {activeModal?.type === 'SANCTION' && (
         <SanctionLetterModal workflow={activeModal.data} />
       )}
+
+      {/* User Authentication Modal */}
+      <AuthModal />
 
       {/* Notification Toast Stack */}
       <ToastContainer />

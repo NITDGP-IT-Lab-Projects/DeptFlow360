@@ -2,17 +2,86 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useCall
 import { INITIAL_ROLES, DeptStore, EVALUATION_RUBRICS } from '../engine/data.js';
 import { WorkflowEngine } from '../engine/workflowEngine.js';
 import { AllocationEngine } from '../engine/allocationEngine.js';
-import { api } from '../services/api.js';
+import { api, getAuthToken, clearAuthToken } from '../services/api.js';
 
 const AppContext = createContext();
+
+// Cryptographic SHA-256 helper for client-side offline fallback
+const clientHashPassword = async (password) => {
+  const enc = new TextEncoder().encode(password + "_deptflow_salt_2026");
+  const hashBuf = await crypto.subtle.digest("SHA-256", enc);
+  return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+const DEFAULT_AUTH_USERS = [
+  {
+    id: 'USR-HOD-01',
+    name: 'Dr. Rajeshwar Sen',
+    email: 'hod.it@university.edu',
+    plainPass: 'Admin@123',
+    role: 'HOD',
+    designation: 'Professor & Head of Department'
+  },
+  {
+    id: 'USR-COORD-02',
+    name: 'Dr. Ananya Roy',
+    email: 'ananya.roy@university.edu',
+    plainPass: 'Coord@123',
+    role: 'COORDINATOR',
+    designation: 'Associate Professor & Project Convener'
+  },
+  {
+    id: 'USR-FAC-03',
+    name: 'Dr. Vikramaditya Das',
+    email: 'vikram.das@university.edu',
+    plainPass: 'Guide@123',
+    role: 'FACULTY',
+    designation: 'Associate Professor'
+  },
+  {
+    id: 'USR-PG-01',
+    name: 'Sneha Mukherjee',
+    email: 'sneha.m@university.edu',
+    plainPass: 'Student@123',
+    role: 'PG_STUDENT',
+    designation: 'PG Scholar (M.Tech 2nd Year)'
+  },
+  {
+    id: 'USR-UG-04',
+    name: 'Rahul Verma (Team 04 Lead)',
+    email: 'team04.lead@university.edu',
+    plainPass: 'Student@123',
+    role: 'UG_STUDENT',
+    designation: 'B.Tech Capstone Lead (Team 04)'
+  }
+];
 
 export const AppProvider = ({ children }) => {
   // Engines initialized with persistent DeptStore
   const workflowEngine = useMemo(() => new WorkflowEngine(DeptStore), []);
   const allocationEngine = useMemo(() => new AllocationEngine(DeptStore), []);
 
+  // Authentication & User State
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('deptflow_user');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    // Default active persona session
+    return {
+      id: 'USR-HOD-01',
+      name: 'Dr. Rajeshwar Sen',
+      email: 'hod.it@university.edu',
+      role: 'HOD',
+      designation: 'Professor & Head of Department'
+    };
+  });
+
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState('SIGNIN'); // 'SIGNIN' | 'SIGNUP'
+
   // Application State
-  const [currentRoleKey, setCurrentRoleKey] = useState('HOD');
+  const [currentRoleKey, setCurrentRoleKey] = useState(() => currentUser?.role || 'HOD');
   const [activeView, setActiveView] = useState('dashboard');
   const [workflows, setWorkflows] = useState(() => workflowEngine.getAll());
   const [facultyList, setFacultyList] = useState(() => allocationEngine.getFacultyList());
@@ -23,7 +92,7 @@ export const AppProvider = ({ children }) => {
   const [backendDetails, setBackendDetails] = useState(null);
 
   // Modal State
-  const [activeModal, setActiveModal] = useState(null); // { type: 'DETAIL'|'NEW_SUBMISSION'|'RUBRIC'|'OVERRIDE'|'SANCTION', data: any }
+  const [activeModal, setActiveModal] = useState(null);
 
   // Toast Notifications
   const [toasts, setToasts] = useState([]);
@@ -40,9 +109,24 @@ export const AppProvider = ({ children }) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
+  // Sync role key when user changes
+  useEffect(() => {
+    if (currentUser?.role) {
+      setCurrentRoleKey(currentUser.role);
+    }
+  }, [currentUser]);
+
   const currentRoleData = useMemo(() => {
+    if (currentUser && currentUser.name) {
+      return {
+        ...(INITIAL_ROLES[currentRoleKey] || INITIAL_ROLES.HOD),
+        name: currentUser.name,
+        title: currentUser.designation || INITIAL_ROLES[currentRoleKey]?.title || 'Academic Member',
+        email: currentUser.email
+      };
+    }
     return INITIAL_ROLES[currentRoleKey] || INITIAL_ROLES.HOD;
-  }, [currentRoleKey]);
+  }, [currentRoleKey, currentUser]);
 
   // Check Backend Connection and sync data if available
   const syncWithBackend = useCallback(async () => {
@@ -98,10 +182,151 @@ export const AppProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, [syncWithBackend]);
 
+  // --- Authentication Handlers ---
+  const handleSignIn = useCallback(async ({ email, password }) => {
+    const normalizedEmail = email.toLowerCase().trim();
+
+    try {
+      if (backendOnline) {
+        const res = await api.signIn({ email: normalizedEmail, password });
+        if (res && res.success && res.user) {
+          setCurrentUser(res.user);
+          localStorage.setItem('deptflow_user', JSON.stringify(res.user));
+          setCurrentRoleKey(res.user.role);
+          setAuthModalOpen(false);
+          addToast('success', 'Sign In Successful', `Authenticated as ${res.user.name} (${res.user.role})`);
+          return res.user;
+        }
+      }
+    } catch (apiErr) {
+      console.warn("API sign in failed, testing local hashed auth fallback:", apiErr.message);
+    }
+
+    // Resilient Local Cryptographic Fallback (Matches default accounts or locally registered users)
+    const localRegistered = DeptStore.get("REGISTERED_USERS") || [];
+    const allUsers = [...DEFAULT_AUTH_USERS, ...localRegistered];
+    const candidate = allUsers.find(u => u.email.toLowerCase() === normalizedEmail);
+
+    if (!candidate) {
+      addToast('danger', 'Sign In Failed', 'No account found with this email address.');
+      throw new Error('No account found with this email address.');
+    }
+
+    const candidateHash = await clientHashPassword(password);
+    let isMatch = false;
+
+    if (candidate.plainPass && candidate.plainPass === password) {
+      isMatch = true;
+    } else if (candidate.passwordHash && candidate.passwordHash === candidateHash) {
+      isMatch = true;
+    }
+
+    if (!isMatch) {
+      addToast('danger', 'Authentication Failed', 'Invalid password. Verification check failed.');
+      throw new Error('Invalid password.');
+    }
+
+    const userObj = {
+      id: candidate.id || `USR-${Date.now()}`,
+      name: candidate.name,
+      email: candidate.email,
+      role: candidate.role,
+      designation: candidate.designation || 'Academic Member'
+    };
+
+    setCurrentUser(userObj);
+    localStorage.setItem('deptflow_user', JSON.stringify(userObj));
+    setCurrentRoleKey(userObj.role);
+    setAuthModalOpen(false);
+    addToast('success', 'Sign In Successful', `Authenticated as ${userObj.name} (${userObj.role})`);
+    return userObj;
+  }, [backendOnline, addToast]);
+
+  const handleSignUp = useCallback(async ({ name, email, password, role, designation }) => {
+    const normalizedEmail = email.toLowerCase().trim();
+
+    if (!name || !email || !password) {
+      addToast('danger', 'Registration Incomplete', 'Please fill in all required fields.');
+      throw new Error('Missing required fields.');
+    }
+
+    if (password.length < 6) {
+      addToast('danger', 'Password Too Weak', 'Password must be at least 6 characters.');
+      throw new Error('Password too short.');
+    }
+
+    try {
+      if (backendOnline) {
+        const res = await api.signUp({
+          name,
+          email: normalizedEmail,
+          password,
+          role,
+          designation
+        });
+        if (res && res.success && res.user) {
+          setCurrentUser(res.user);
+          localStorage.setItem('deptflow_user', JSON.stringify(res.user));
+          setCurrentRoleKey(res.user.role);
+          setAuthModalOpen(false);
+          addToast('success', 'Account Registered', `Welcome to DeptFlow 360, ${res.user.name}!`);
+          return res.user;
+        }
+      }
+    } catch (apiErr) {
+      console.warn("API sign up failed, registering in local store:", apiErr.message);
+    }
+
+    // Local Fallback Registration with SHA-256 Hashing
+    const localRegistered = DeptStore.get("REGISTERED_USERS") || [];
+    const exists = [...DEFAULT_AUTH_USERS, ...localRegistered].some(u => u.email.toLowerCase() === normalizedEmail);
+
+    if (exists) {
+      addToast('danger', 'Registration Error', 'An account with this email already exists.');
+      throw new Error('Email already registered.');
+    }
+
+    const passwordHash = await clientHashPassword(password);
+    const newLocalUser = {
+      id: `USR-${Date.now().toString(36).toUpperCase()}`,
+      name: name.trim(),
+      email: normalizedEmail,
+      passwordHash,
+      role: role || 'UG_STUDENT',
+      designation: designation || (role?.includes('STUDENT') ? 'Student Scholar' : 'Faculty Member'),
+      createdAt: new Date().toISOString()
+    };
+
+    localRegistered.push(newLocalUser);
+    DeptStore.save("REGISTERED_USERS", localRegistered);
+
+    const userObj = {
+      id: newLocalUser.id,
+      name: newLocalUser.name,
+      email: newLocalUser.email,
+      role: newLocalUser.role,
+      designation: newLocalUser.designation
+    };
+
+    setCurrentUser(userObj);
+    localStorage.setItem('deptflow_user', JSON.stringify(userObj));
+    setCurrentRoleKey(userObj.role);
+    setAuthModalOpen(false);
+    addToast('success', 'Account Registered', `New account created for ${userObj.name} (${userObj.role}).`);
+    return userObj;
+  }, [backendOnline, addToast]);
+
+  const handleSignOut = useCallback(() => {
+    api.signOut();
+    localStorage.removeItem('deptflow_user');
+    setCurrentUser(null);
+    setCurrentRoleKey('UG_STUDENT');
+    addToast('info', 'Signed Out', 'Your session has been terminated safely.');
+  }, [addToast]);
+
   // Actions
   const handleTransition = useCallback(async (workflowId, actionKey, comment) => {
     try {
-      // Execute on local engine for instant responsiveness
       const updatedWf = workflowEngine.transition(
         workflowId, 
         actionKey, 
@@ -112,7 +337,6 @@ export const AppProvider = ({ children }) => {
       setWorkflows([...workflowEngine.getAll()]);
       setNotifications([...workflowEngine.notifications]);
 
-      // Sync with Express backend if online
       if (backendOnline) {
         try {
           await api.transitionWorkflow(workflowId, {
@@ -145,10 +369,10 @@ export const AppProvider = ({ children }) => {
           await api.createWorkflow({
             ...payload,
             submittedBy: {
-              id: currentRoleData.id,
+              id: currentRoleData.id || currentUser?.id,
               name: currentRoleData.name,
               rollNo: currentRoleData.rollNo || "N/A",
-              email: `${currentRoleData.name.toLowerCase().replace(/\s+/g, ".")}@university.edu`,
+              email: currentRoleData.email || `${currentRoleData.name.toLowerCase().replace(/\s+/g, ".")}@university.edu`,
               degree: currentRoleData.title || "Student",
               teamMembers: payload.teamMembers || [currentRoleData.name]
             }
@@ -164,7 +388,7 @@ export const AppProvider = ({ children }) => {
       addToast("danger", "Submission Error", err.message);
       throw err;
     }
-  }, [workflowEngine, currentRoleKey, currentRoleData, backendOnline, addToast]);
+  }, [workflowEngine, currentRoleKey, currentRoleData, currentUser, backendOnline, addToast]);
 
   const handleEvaluateMilestone = useCallback(async (workflowId, milestoneId, rubricScores, feedback) => {
     try {
@@ -181,7 +405,11 @@ export const AppProvider = ({ children }) => {
       if (backendOnline) {
         try {
           await api.updateRubric(workflowId, {
-            rubricScores,
+            rubricScores: {
+              literatureReview: rubricScores.literatureReview || rubricScores.litScore || 25,
+              methodology: rubricScores.methodology || rubricScores.rigorScore || 35,
+              presentation: rubricScores.presentation || rubricScores.oralScore || 26
+            },
             qualitativeFeedback: feedback,
             evaluatedBy: currentRoleData.name
           });
@@ -190,17 +418,17 @@ export const AppProvider = ({ children }) => {
         }
       }
 
-      addToast("success", "Defense Evaluated", `Milestone ${milestone.name} scored ${milestone.score}/100.`);
+      addToast("success", "Milestone Graded", `Defense score sealed with Outcome Grade ${milestone.grade || 'O'}.`);
       return milestone;
     } catch (err) {
-      addToast("danger", "Evaluation Error", err.message);
+      addToast("danger", "Grading Failed", err.message);
       throw err;
     }
   }, [workflowEngine, currentRoleData, backendOnline, addToast]);
 
   const handleRunAllocation = useCallback(async () => {
     try {
-      const result = allocationEngine.runAutomatedMatching();
+      const result = allocationEngine.runAllocation();
       setTeamsList([...allocationEngine.getTeams()]);
       setFacultyList([...allocationEngine.getFacultyList()]);
       setSimulationLogs(result.logs || []);
@@ -209,21 +437,21 @@ export const AppProvider = ({ children }) => {
         try {
           await api.simulateAllocation();
         } catch (err) {
-          console.warn("Express backend allocation sync error:", err);
+          console.warn("Express backend allocation simulation sync error:", err);
         }
       }
 
-      addToast("success", "Allocation Complete", "Gale-Shapley matching executed. Quotas balanced.");
+      addToast("success", "Allocation Solved", `Gale-Shapley matching complete: ${result.matchCount} groups stably assigned.`);
       return result;
     } catch (err) {
-      addToast("danger", "Matching Failed", err.message);
+      addToast("danger", "Allocation Error", err.message);
       throw err;
     }
   }, [allocationEngine, backendOnline, addToast]);
 
   const handleManualOverride = useCallback(async (teamId, newFacultyId, reason) => {
     try {
-      const updatedTeam = allocationEngine.manualOverride(teamId, newFacultyId, reason, currentRoleData.name);
+      const updated = allocationEngine.manualOverride(teamId, newFacultyId, reason, currentRoleData.name);
       setTeamsList([...allocationEngine.getTeams()]);
       setFacultyList([...allocationEngine.getFacultyList()]);
 
@@ -240,10 +468,10 @@ export const AppProvider = ({ children }) => {
         }
       }
 
-      addToast("info", "Override Applied", `Team ${teamId} reassigned to mentor with audit justification logged.`);
-      return updatedTeam;
+      addToast("warning", "Manual Reassignment Applied", `Team ${teamId} reassigned to ${newFacultyId}. Audit logged.`);
+      return updated;
     } catch (err) {
-      addToast("danger", "Override Error", err.message);
+      addToast("danger", "Override Failed", err.message);
       throw err;
     }
   }, [allocationEngine, currentRoleData, backendOnline, addToast]);
@@ -258,25 +486,39 @@ export const AppProvider = ({ children }) => {
       try {
         await api.resetAllocation();
       } catch (err) {
-        console.warn("Express backend reset allocation error:", err);
+        console.warn("Backend reset allocation error:", err);
       }
     }
 
-    addToast("neutral", "Allocations Reverted", "Project allocations reverted to baseline seed.");
+    addToast("info", "Allocation Reset", "Student preferences and faculty quotas restored to factory baseline.");
   }, [allocationEngine, backendOnline, addToast]);
 
   const handleResetEntirePortal = useCallback(async () => {
-    if (!window.confirm("Are you sure you want to reset all workflows, allocations, and audit logs to factory defaults?")) {
-      return;
+    DeptStore.clear();
+    workflowEngine.resetDefaults();
+    allocationEngine.resetAllocations();
+    setWorkflows([...workflowEngine.getAll()]);
+    setFacultyList([...allocationEngine.getFacultyList()]);
+    setTeamsList([...allocationEngine.getTeams()]);
+    setNotifications([...workflowEngine.notifications]);
+    setSimulationLogs([]);
+
+    if (backendOnline) {
+      try {
+        await api.resetWorkflows();
+        await api.resetAllocation();
+      } catch (err) {
+        console.warn("Backend reset portal error:", err);
+      }
     }
-    DeptStore.reset();
-    window.location.reload();
-  }, []);
+
+    addToast("info", "Portal Reset Complete", "All workflows and local state reset to clean baseline.");
+  }, [workflowEngine, allocationEngine, backendOnline, addToast]);
 
   const handleExportAudit = useCallback(() => {
     const fullAudit = {
-      system: "DeptFlow 360 - Departmental Activity & Workflow Management System",
-      academicYear: "2026-2027",
+      system: "DeptFlow 360 Departmental Activity Management Suite",
+      version: "2.5.0",
       exportedAt: new Date().toISOString(),
       exportedBy: `${currentRoleData.name} (${currentRoleKey})`,
       workflows: workflowEngine.getAll(),
@@ -295,6 +537,21 @@ export const AppProvider = ({ children }) => {
   }, [currentRoleData, currentRoleKey, workflowEngine, allocationEngine, addToast]);
 
   const value = {
+    // Auth
+    currentUser,
+    isAuthenticated: Boolean(currentUser),
+    authModalOpen,
+    authMode,
+    openAuthModal: (mode = 'SIGNIN') => {
+      setAuthMode(mode);
+      setAuthModalOpen(true);
+    },
+    closeAuthModal: () => setAuthModalOpen(false),
+    handleSignIn,
+    handleSignUp,
+    handleSignOut,
+
+    // Core roles & views
     currentRoleKey,
     setCurrentRoleKey,
     currentRoleData,

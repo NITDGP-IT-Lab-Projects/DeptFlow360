@@ -2,6 +2,8 @@ const Faculty = require('../models/Faculty');
 const ProjectTeam = require('../models/ProjectTeam');
 const Workflow = require('../models/Workflow');
 const Notification = require('../models/Notification');
+const User = require('../models/User');
+const { hashPassword } = require('../utils/auth');
 
 const INITIAL_FACULTY = [
   {
@@ -593,6 +595,59 @@ const autoSeedDatabase = async () => {
     if (notifCount === 0) {
       await Notification.insertMany(INITIAL_NOTIFICATIONS);
       console.log('🌱 Seeded Notifications into MongoDB Atlas.');
+    }
+
+    const userCount = await User.countDocuments();
+    if (userCount === 0) {
+      const defaultUsers = [
+        {
+          name: "Dr. Rajeshwar Sen",
+          email: "hod.it@university.edu",
+          password: await hashPassword("Admin@123"),
+          role: "HOD",
+          designation: "Professor & Head of Department",
+          department: "Information Technology",
+          referenceId: "FAC-01"
+        },
+        {
+          name: "Dr. Ananya Roy",
+          email: "ananya.roy@university.edu",
+          password: await hashPassword("Coord@123"),
+          role: "COORDINATOR",
+          designation: "Associate Professor (UG/PG Project Convener)",
+          department: "Information Technology",
+          referenceId: "FAC-02"
+        },
+        {
+          name: "Dr. Vikramaditya Das",
+          email: "vikram.das@university.edu",
+          password: await hashPassword("Guide@123"),
+          role: "FACULTY",
+          designation: "Associate Professor",
+          department: "Information Technology",
+          referenceId: "FAC-03"
+        },
+        {
+          name: "Sneha Mukherjee",
+          email: "sneha.m@university.edu",
+          password: await hashPassword("Student@123"),
+          role: "PG_STUDENT",
+          designation: "PG Scholar (M.Tech)",
+          department: "Information Technology",
+          referenceId: "PG-2025-01"
+        },
+        {
+          name: "Rahul Verma",
+          email: "team04.lead@university.edu",
+          password: await hashPassword("Student@123"),
+          role: "UG_STUDENT",
+          designation: "UG Capstone Lead (Team 04)",
+          department: "Information Technology",
+          referenceId: "UG-2024-04"
+        }
+      ];
+      await User.insertMany(defaultUsers);
+      console.log('🌱 Seeded 5 User accounts with hashed passwords into MongoDB Atlas.');
     }
   } catch (err) {
     console.error('⚠️ Auto-seeding warning:', err.message);

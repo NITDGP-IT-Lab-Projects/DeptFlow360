@@ -5,17 +5,64 @@
 
 const API_BASE = '/api';
 
+let cachedToken = null;
+
+try {
+  cachedToken = localStorage.getItem('deptflow_auth_token');
+} catch {
+  // SSR or local storage disabled
+}
+
+export const setAuthToken = (token) => {
+  cachedToken = token;
+  try {
+    if (token) {
+      localStorage.setItem('deptflow_auth_token', token);
+    } else {
+      localStorage.removeItem('deptflow_auth_token');
+    }
+  } catch (e) {
+    console.warn('Could not persist auth token in localStorage:', e);
+  }
+};
+
+export const getAuthToken = () => {
+  if (!cachedToken) {
+    try {
+      cachedToken = localStorage.getItem('deptflow_auth_token');
+    } catch {
+      cachedToken = null;
+    }
+  }
+  return cachedToken;
+};
+
+export const clearAuthToken = () => {
+  cachedToken = null;
+  try {
+    localStorage.removeItem('deptflow_auth_token');
+  } catch {}
+};
+
 /**
- * Helper to execute fetch requests with timeout and error handling
+ * Helper to execute fetch requests with timeout, Bearer token, and error handling
  */
 async function apiRequest(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint}`;
+  const token = getAuthToken();
+
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const config = {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers
-    },
-    ...options
+    ...options,
+    headers
   };
 
   const response = await fetch(url, config);
@@ -35,6 +82,41 @@ export const api = {
     } catch (err) {
       return { online: false, error: err.message };
     }
+  },
+
+  // --- Authentication & User Management ---
+  async signUp(payload) {
+    const res = await apiRequest('/auth/signup', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    if (res.token) {
+      setAuthToken(res.token);
+    }
+    return res;
+  },
+
+  async signIn(credentials) {
+    const res = await apiRequest('/auth/signin', {
+      method: 'POST',
+      body: JSON.stringify(credentials)
+    });
+    if (res.token) {
+      setAuthToken(res.token);
+    }
+    return res;
+  },
+
+  async getMe() {
+    return await apiRequest('/auth/me');
+  },
+
+  async getUsers() {
+    return await apiRequest('/auth/users');
+  },
+
+  signOut() {
+    clearAuthToken();
   },
 
   // --- Workflows ---
