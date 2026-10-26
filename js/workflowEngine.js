@@ -3,10 +3,22 @@
  * Workflow State Machine, Transition Validator & Audit Trail Engine
  */
 
+let _INITIAL_WORKFLOWS;
+if (typeof require !== "undefined" && typeof module !== "undefined") {
+  try {
+    const data = require("./data.js");
+    _INITIAL_WORKFLOWS = data.INITIAL_WORKFLOWS;
+  } catch (e) {
+    _INITIAL_WORKFLOWS = [];
+  }
+} else {
+  _INITIAL_WORKFLOWS = typeof INITIAL_WORKFLOWS !== "undefined" ? INITIAL_WORKFLOWS : [];
+}
+
 class WorkflowEngine {
   constructor(store) {
     this.store = store;
-    this.workflows = this.store.load("WORKFLOWS", INITIAL_WORKFLOWS);
+    this.workflows = this.store.load("WORKFLOWS", _INITIAL_WORKFLOWS);
     this.notifications = this.store.load("NOTIFICATIONS", [
       {
         id: "NOTIF-01",
