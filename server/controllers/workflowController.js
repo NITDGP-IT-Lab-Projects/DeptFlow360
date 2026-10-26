@@ -1,0 +1,322 @@
+const Workflow = require('../models/Workflow');
+const Notification = require('../models/Notification');
+
+// GET /api/workflows - List workflows with role & status filters
+exports.getWorkflows = async (req, res) => {
+  try {
+    const { role, roleId, category, status, search } = req.query;
+    let query = {};
+
+    // Category filter
+    if (category && category !== 'ALL') {
+      query.category = category;
+    }
+
+    // Status filter
+    if (status && status !== 'ALL') {
+      if (status === 'UNDER_REVIEW') {
+        query.state = { $regex: 'UNDER_.*_REVIEW' };
+      } else {
+        query.state = status;
+      }
+    }
+
+    // Role-based visibility
+    if (role === 'FACULTY' && roleId) {
+      query.$or = [
+        { 'details.allocatedGuideId': roleId },
+        { 'details.proposedGuideId': roleId },
+        { 'submittedBy.id': roleId },
+        { category: 'DEPARTMENTAL' }
+      ];
+    } else if ((role === 'UG_STUDENT' || role === 'PG_STUDENT') && roleId) {
+      query.$or = [
+        { 'submittedBy.id': roleId },
+        { 'submittedBy.teamMembers': { $regex: roleId, $options: 'i' } }
+      ];
+    }
+
+    // Search query
+    if (search && search.trim() !== '') {
+      const regex = new RegExp(search.trim(), 'i');
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { title: regex },
+          { id: regex },
+          { 'submittedBy.name': regex },
+          { 'details.domain': regex }
+        ]
+      });
+    }
+
+    const workflows = await Workflow.find(query).sort({ updatedAt: -1 });
+    res.json({ success: true, count: workflows.length, data: workflows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// GET /api/workflows/:id - Single workflow details
+exports.getWorkflowById = async (req, res) => {
+  try {
+    const workflow = await Workflow.findOne({ id: req.params.id });
+    if (!workflow) {
+      return res.status(404).json({ success: false, error: 'Workflow not found' });
+    }
+    res.json({ success: true, data: workflow });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// POST /api/workflows - Create new proposal
+exports.createWorkflow = async (req, res) => {
+  try {
+    const { title, category, type, domain, abstract, proposedGuideId, actorRole, actorData } = req.body;
+
+    if (!title || !abstract) {
+      return res.status(400).json({ success: false, error: 'Title and Abstract are required.' });
+    }
+
+    const count = await Workflow.countDocuments();
+    const prefix = category === 'UG' ? 'WF-2026-UG-' : 
+                   category === 'PG' ? 'WF-2026-PG-' : 'WF-2026-REQ-';
+    const newId = prefix + String(count + 1).padStart(2, '0');
+
+    const nowStr = new Date().toLocaleString('en-US', { 
+      year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+    });
+
+    const isDirectDept = (category === 'DEPARTMENTAL');
+    const initialState = isDirectDept ? 'UNDER_COORDINATOR_REVIEW' : 'UNDER_GUIDE_REVIEW';
+
+    const newWorkflow = new Workflow({
+      id: newId,
+      type: type || 'UG_PROJECT',
+      title,
+      category: category || 'UG',
+      submittedBy: {
+        id: actorData?.id || 'STUDENT-TEMP',
+        name: actorData?.name || 'Student Candidate',
+        rollNo: actorData?.rollNo || 'N/A',
+        email: actorData?.email || `${(actorData?.name || 'student').toLowerCase().replace(/\s+/g, '.')}@university.edu`,
+        degree: actorData?.title || 'Student',
+        teamMembers: req.body.teamMembers || [actorData?.name || 'Student Candidate']
+      },
+      details: {
+        domain: domain || 'General IT',
+        abstract,
+        proposedGuideId: proposedGuideId || null,
+        allocatedGuideId: proposedGuideId || null,
+        purpose: isDirectDept ? abstract : null
+      },
+      state: initialState,
+      slaDaysRemaining: 7,
+      history: [
+        {
+          timestamp: nowStr,
+          actorId: actorData?.id || 'SYS',
+          actorName: actorData?.name || 'Submitter',
+          actorRole: actorData?.title || actorRole || 'Student',
+          action: 'SUBMITTED',
+          comment: req.body.initialRemarks || 'Initial online proposal submitted through DAWMS portal.',
+          statusFrom: 'DRAFT',
+          statusTo: initialState
+        }
+      ],
+      milestones: (category === 'UG' || category === 'PG') ? [
+        {
+          id: 'M1',
+          name: category === 'UG' ? 'Milestone 1: Literature Survey & SRS' : 'RAC Review 1: Problem Formulation',
+          deadline: '2026-11-20',
+          weightage: 25,
+          maxScore: 100,
+          score: null,
+          status: 'PENDING',
+          rubricScores: {}
+        },
+        {
+          id: 'M2',
+          name: category === 'UG' ? 'Milestone 2: Design & Mathematical Model' : 'RAC Review 2: Benchmarking & Proof',
+          deadline: '2026-12-20',
+          weightage: 35,
+          maxScore: 100,
+          score: null,
+          status: 'PENDING',
+          rubricScores: {}
+        },
+        {
+          id: 'M3',
+          name: category === 'UG' ? 'Milestone 3: Implementation, Code & Defense' : 'Final Thesis Defense & Clearance',
+          deadline: '2027-02-10',
+          weightage: 40,
+          maxScore: 100,
+          score: null,
+          status: 'PENDING',
+          rubricScores: {}
+        }
+      ] : []
+    });
+
+    await newWorkflow.save();
+
+    // Create Notification
+    await Notification.create({
+      id: 'NOTIF-' + Date.now(),
+      title: `New Proposal: ${newWorkflow.id}`,
+      message: `${newWorkflow.submittedBy.name} submitted: ${newWorkflow.title}`,
+      timestamp: 'Just now',
+      read: false,
+      targetRole: initialState === 'UNDER_GUIDE_REVIEW' ? 'FACULTY' : 'COORDINATOR',
+      workflowId: newWorkflow.id
+    });
+
+    res.status(201).json({ success: true, data: newWorkflow });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// POST /api/workflows/:id/transition - Execute RBAC State Transition
+exports.transitionWorkflow = async (req, res) => {
+  try {
+    const { actionKey, comment, actorRole, actorData } = req.body;
+    const wf = await Workflow.findOne({ id: req.params.id });
+
+    if (!wf) {
+      return res.status(404).json({ success: false, error: 'Workflow not found.' });
+    }
+
+    const previousState = wf.state;
+    let nextState = previousState;
+    let actionLabel = actionKey;
+    let targetNotifRole = 'STUDENT';
+    let notifMessage = '';
+
+    switch (actionKey) {
+      case 'RESUBMIT':
+        nextState = 'UNDER_GUIDE_REVIEW';
+        actionLabel = 'STUDENT_RESUBMITTED';
+        notifMessage = `${actorData?.name} resubmitted: ${wf.title}`;
+        targetNotifRole = 'FACULTY';
+        break;
+
+      case 'GUIDE_ENDORSE':
+        nextState = 'UNDER_COORDINATOR_REVIEW';
+        actionLabel = 'GUIDE_ENDORSED';
+        notifMessage = `${actorData?.name} endorsed: ${wf.title}. Awaiting coordinator review.`;
+        targetNotifRole = 'COORDINATOR';
+        break;
+
+      case 'COORDINATOR_VERIFY':
+        nextState = 'UNDER_HOD_REVIEW';
+        actionLabel = 'COORDINATOR_VERIFIED';
+        notifMessage = `Coordinator ${actorData?.name} verified & forwarded: ${wf.title} for HOD sanction.`;
+        targetNotifRole = 'HOD';
+        break;
+
+      case 'HOD_APPROVE':
+        nextState = 'APPROVED';
+        actionLabel = 'HOD_SANCTIONED';
+        notifMessage = `Official Approval granted by HOD for ${wf.title}. Project workspace active!`;
+        targetNotifRole = wf.category === 'UG' ? 'UG_STUDENT' : 'PG_STUDENT';
+        break;
+
+      case 'REQUEST_REVISION':
+        nextState = 'REVISION_REQUESTED';
+        actionLabel = 'REVISION_REQUESTED';
+        notifMessage = `Revision required on ${wf.title} by ${actorData?.name}: "${comment}"`;
+        targetNotifRole = wf.category === 'UG' ? 'UG_STUDENT' : 'PG_STUDENT';
+        break;
+
+      case 'REJECT':
+        nextState = 'REJECTED';
+        actionLabel = 'WORKFLOW_REJECTED';
+        notifMessage = `Workflow rejected for ${wf.title}. Reason: ${comment}`;
+        targetNotifRole = wf.category === 'UG' ? 'UG_STUDENT' : 'PG_STUDENT';
+        break;
+
+      default:
+        return res.status(400).json({ success: false, error: `Unsupported transition: ${actionKey}` });
+    }
+
+    const nowStr = new Date().toLocaleString('en-US', { 
+      year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+    });
+
+    wf.state = nextState;
+    wf.history.push({
+      timestamp: nowStr,
+      actorId: actorData?.id || 'SYS',
+      actorName: actorData?.name || 'Authority',
+      actorRole: actorData?.title || actorRole || 'Authority',
+      action: actionLabel,
+      comment: comment || 'Action confirmed through portal interface.',
+      statusFrom: previousState,
+      statusTo: nextState
+    });
+
+    await wf.save();
+
+    await Notification.create({
+      id: 'NOTIF-' + Date.now(),
+      title: `Workflow Update: [${wf.id}]`,
+      message: notifMessage,
+      timestamp: 'Just now',
+      read: false,
+      targetRole: targetNotifRole,
+      workflowId: wf.id
+    });
+
+    res.json({ success: true, data: wf });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// POST /api/workflows/:id/milestones/:milestoneId/evaluate - Score Rubric
+exports.evaluateMilestone = async (req, res) => {
+  try {
+    const { rubricScores, feedback, evaluatorData } = req.body;
+    const wf = await Workflow.findOne({ id: req.params.id });
+
+    if (!wf || !wf.milestones) {
+      return res.status(404).json({ success: false, error: 'Workflow or milestones not found.' });
+    }
+
+    const milestone = wf.milestones.find(m => m.id === req.params.milestoneId);
+    if (!milestone) {
+      return res.status(404).json({ success: false, error: 'Milestone not found.' });
+    }
+
+    const totalScore = Object.values(rubricScores || {}).reduce((acc, v) => acc + Number(v || 0), 0);
+    milestone.score = totalScore;
+    milestone.rubricScores = rubricScores;
+    milestone.status = 'EVALUATED';
+    milestone.feedback = feedback || '';
+    milestone.evaluator = evaluatorData?.name || 'Faculty Examiner';
+    milestone.evaluatedAt = new Date().toLocaleDateString();
+
+    const nowStr = new Date().toLocaleString('en-US', { 
+      year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+    });
+
+    wf.history.push({
+      timestamp: nowStr,
+      actorId: evaluatorData?.id || 'FACULTY',
+      actorName: evaluatorData?.name || 'Faculty Examiner',
+      actorRole: 'Faculty Examiner',
+      action: 'RUBRIC_EVALUATION',
+      comment: `Evaluated ${milestone.name}: Score ${totalScore}/${milestone.maxScore}. Feedback: "${feedback}"`,
+      statusFrom: wf.state,
+      statusTo: wf.state
+    });
+
+    await wf.save();
+
+    res.json({ success: true, data: milestone, workflow: wf });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};

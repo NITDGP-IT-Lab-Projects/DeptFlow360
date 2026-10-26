@@ -44,7 +44,20 @@ const jsFiles = [
   'js/data.js',
   'js/workflowEngine.js',
   'js/allocationEngine.js',
-  'js/app.js'
+  'js/app.js',
+  'server/server.js',
+  'server/config/db.js',
+  'server/models/Workflow.js',
+  'server/models/Faculty.js',
+  'server/models/ProjectTeam.js',
+  'server/models/Notification.js',
+  'server/controllers/workflowController.js',
+  'server/controllers/allocationController.js',
+  'server/controllers/facultyController.js',
+  'server/routes/workflowRoutes.js',
+  'server/routes/allocationRoutes.js',
+  'server/routes/facultyRoutes.js',
+  'server/seed/seedData.js'
 ];
 
 jsFiles.forEach(jsRel => {

@@ -1,0 +1,19 @@
+# Environment variables & secrets (CRITICAL: Do not commit!)
+.env
+.env.local
+.env.*.local
+
+# Node modules & dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker & local system logs
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE settings
+.vscode/
+.idea/

@@ -52,19 +52,24 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker Image
+      - name: Build Backend Docker Image
         run: |
           docker build \
-            --tag deptflow360:ci \
-            --label "commit=${{ github.sha }}" \
+            --tag deptflow-backend:ci \
+            --file server/Dockerfile server/
+
+      - name: Build Frontend Docker Image
+        run: |
+          docker build \
+            --tag deptflow-frontend:ci \
             --file Dockerfile .
 
-      - name: Launch Test Container
+      - name: Launch Test Frontend Container
         run: |
           docker run -d \
             --name deptflow360-ci-container \
             -p 8080:80 \
-            deptflow360:ci
+            deptflow-frontend:ci
 
       - name: Verify Container Health Check Endpoint (/healthz)
         run: |
