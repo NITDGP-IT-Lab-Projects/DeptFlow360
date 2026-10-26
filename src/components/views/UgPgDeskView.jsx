@@ -102,7 +102,7 @@ export const UgPgDeskView = () => {
                       <div 
                         key={m.id || idx} 
                         style={{
-                          background: 'rgba(255,255,255,0.02)',
+                          background: '#10121a',
                           border: '1px solid var(--border-subtle)',
                           borderRadius: 'var(--radius-md)',
                           padding: '0.85rem'

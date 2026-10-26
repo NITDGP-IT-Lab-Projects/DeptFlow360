@@ -44,7 +44,7 @@ export const RubricScoringModal = ({ workflow, milestone }) => {
 
   const getTrackBackground = (val, max) => {
     const pct = (val / max) * 100;
-    return `linear-gradient(to right, #6366f1 0%, #06b6d4 ${pct}%, rgba(255,255,255,0.08) ${pct}%, rgba(255,255,255,0.08) 100%)`;
+    return `linear-gradient(to right, #4f46e5 0%, #4f46e5 ${pct}%, #1e2230 ${pct}%, #1e2230 100%)`;
   };
 
   return (
@@ -137,14 +137,14 @@ export const RubricScoringModal = ({ workflow, milestone }) => {
 
           {/* Composite Score Card with Fluid Grade Morph */}
           <div style={{
-            background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(6,182,212,0.06))',
-            border: '1px solid var(--border-accent)',
+            background: '#151824',
+            border: '1px solid var(--border-medium)',
             borderRadius: 'var(--radius-lg)',
             padding: '1.25rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            boxShadow: 'var(--inner-highlight)'
+            boxShadow: 'var(--shadow-sm)'
           }}>
             <div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>

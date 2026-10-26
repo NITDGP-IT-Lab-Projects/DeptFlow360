@@ -61,7 +61,7 @@ export const FacultyDirView = () => {
               </div>
 
               {/* Quotas */}
-              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem', marginBottom: '1rem' }}>
+              <div style={{ background: '#10121a', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem', marginBottom: '1rem' }}>
                 <div style={{ marginBottom: '0.65rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', marginBottom: '4px' }}>
                     <span style={{ color: 'var(--text-secondary)' }}>UG Capstone Slots</span>

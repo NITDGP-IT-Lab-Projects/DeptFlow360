@@ -34,17 +34,17 @@ export const RubricEvalView = () => {
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
-          <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem' }}>
+          <div style={{ background: '#10121a', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem' }}>
             <span style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Criterion 1 (30 pts)</span>
             <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.85rem', margin: '4px 0' }}>Literature Review & SOTA</div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Citation quality, problem gap clarity, benchmark metrics</div>
           </div>
-          <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem' }}>
+          <div style={{ background: '#10121a', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem' }}>
             <span style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Criterion 2 (40 pts)</span>
             <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.85rem', margin: '4px 0' }}>Methodology & Technical Rigor</div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Mathematical rigor, system architecture, modular software testing</div>
           </div>
-          <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem' }}>
+          <div style={{ background: '#10121a', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem' }}>
             <span style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Criterion 3 (30 pts)</span>
             <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.85rem', margin: '4px 0' }}>Viva Voce & Demonstration</div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Working prototype, cross-examination defense, individual contribution</div>
@@ -86,7 +86,7 @@ export const RubricEvalView = () => {
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        background: 'rgba(255,255,255,0.02)',
+                        background: '#10121a',
                         border: '1px solid var(--border-subtle)',
                         borderRadius: 'var(--radius-md)',
                         padding: '1rem',
