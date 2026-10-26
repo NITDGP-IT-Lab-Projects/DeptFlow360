@@ -165,10 +165,9 @@ export const Topbar = () => {
                 background: 'var(--bg-surface)',
                 border: '1px solid var(--border-medium)',
                 borderRadius: 'var(--radius-lg)',
-                boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08)',
-                backdropFilter: 'blur(20px)',
+                boxShadow: '0 16px 36px -6px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08)',
                 zIndex: 150,
-                animation: 'popoverIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                animation: 'popoverIn 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
               }}
             >
               <div style={{

@@ -35,16 +35,8 @@ export const Sidebar = () => {
     <aside className="sidebar">
       {/* Brand Section */}
       <div className="brand-section">
-        <div className="brand-logo" style={{
-          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(6, 182, 212, 0.25))',
-          border: '1px solid rgba(99, 102, 241, 0.4)',
-          color: '#818cf8',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 0 16px rgba(99, 102, 241, 0.25)'
-        }}>
-          <IconGraduationCap size={22} />
+        <div className="brand-logo">
+          <IconGraduationCap size={20} />
         </div>
         <div>
           <div className="brand-title">DeptFlow 360</div>

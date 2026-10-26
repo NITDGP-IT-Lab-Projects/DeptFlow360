@@ -145,7 +145,7 @@ export const WorkflowDetailModal = ({ workflow }) => {
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
             gap: '1rem',
-            background: 'rgba(255,255,255,0.02)',
+            background: '#10121a',
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-md)',
             padding: '1rem',
@@ -194,7 +194,7 @@ export const WorkflowDetailModal = ({ workflow }) => {
               fontSize: '0.85rem',
               color: 'var(--text-secondary)',
               lineHeight: 1.6,
-              background: 'rgba(0,0,0,0.2)',
+              background: '#0c0d12',
               padding: '0.85rem',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--border-subtle)',
@@ -212,7 +212,9 @@ export const WorkflowDetailModal = ({ workflow }) => {
             <div className="audit-timeline">
               {workflow.history && workflow.history.map((h, idx) => (
                 <div key={idx} className="timeline-item">
-                  <div className="timeline-icon">📌</div>
+                  <div className="timeline-icon">
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#818cf8', display: 'inline-block' }}></span>
+                  </div>
                   <div className="timeline-content">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <strong style={{ fontSize: '0.82rem', color: '#fff' }}>{h.action}</strong>
@@ -234,9 +236,10 @@ export const WorkflowDetailModal = ({ workflow }) => {
           {availableActions.length > 0 && (
             <div style={{
               marginTop: '1rem',
-              paddingTop: '1rem',
               borderTop: '1px solid var(--border-subtle)',
-              background: 'rgba(99, 102, 241, 0.05)',
+              background: '#161924',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-subtle)',
               padding: '1rem',
               borderRadius: 'var(--radius-md)'
             }}>
