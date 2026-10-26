@@ -2,99 +2,63 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
 
 export const WorkflowDetailModal = ({ workflow }) => {
-  const { 
-    closeModal, 
-    openModal, 
-    currentRoleKey, 
-    currentRoleData, 
-    handleTransition 
-  } = useApp();
-
+  const { closeModal, openModal, currentRoleKey, currentRoleData, handleWorkflowTransition } = useApp();
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   if (!workflow) return null;
 
+  // Stepper state representation
   const steps = [
-    { key: 'DRAFT', label: 'Draft' },
-    { key: 'UNDER_GUIDE_REVIEW', label: 'Guide Review' },
-    { key: 'UNDER_COORDINATOR_REVIEW', label: 'Coordinator' },
-    { key: 'UNDER_HOD_REVIEW', label: 'HOD Sanction' },
-    { key: 'APPROVED', label: 'Approved' }
+    { key: 'SUBMITTED', label: 'Submitted' },
+    { key: 'GUIDE', label: 'Guide Review' },
+    { key: 'COORDINATOR', label: 'Coordinator' },
+    { key: 'HOD', label: 'HOD Sanction' }
   ];
 
-  const getCurrentStepIndex = () => {
-    if (workflow.state === 'REJECTED') return -1;
-    if (workflow.state === 'REVISION_REQUESTED') return 1;
-    const idx = steps.findIndex(s => s.key === workflow.state);
-    return idx !== -1 ? idx : 0;
-  };
+  let currentStepIdx = 0;
+  if (workflow.state === 'UNDER_GUIDE_REVIEW') currentStepIdx = 1;
+  else if (workflow.state === 'UNDER_COORDINATOR_REVIEW') currentStepIdx = 2;
+  else if (workflow.state === 'UNDER_HOD_REVIEW') currentStepIdx = 3;
+  else if (workflow.state === 'APPROVED') currentStepIdx = 4;
 
-  const currentStepIdx = getCurrentStepIndex();
+  // Determine allowed actions based on current role and state
+  const availableActions = [];
 
-  const getAvailableActions = () => {
-    const actions = [];
-    const state = workflow.state;
-
-    // Student
-    if ((currentRoleKey === 'UG_STUDENT' || currentRoleKey === 'PG_STUDENT') && 
-        workflow.submittedBy?.id === currentRoleData.id) {
-      if (state === 'DRAFT' || state === 'REVISION_REQUESTED') {
-        actions.push({ key: 'RESUBMIT', label: 'Resubmit with Changes', variant: 'primary' });
-      }
-      return actions;
+  if (currentRoleKey === 'HOD' && workflow.state === 'UNDER_HOD_REVIEW') {
+    availableActions.push(
+      { key: 'HOD_APPROVE', label: 'Sanction & Sign Off', variant: 'success' },
+      { key: 'REQUEST_REVISION', label: 'Request Revision', variant: 'warning' },
+      { key: 'REJECT', label: 'Reject Proposal', variant: 'danger' }
+    );
+  } else if (currentRoleKey === 'COORDINATOR' && workflow.state === 'UNDER_COORDINATOR_REVIEW') {
+    availableActions.push(
+      { key: 'COORDINATOR_VERIFY', label: 'Verify & Forward to HOD', variant: 'primary' },
+      { key: 'REQUEST_REVISION', label: 'Request Revision', variant: 'warning' },
+      { key: 'REJECT', label: 'Reject Proposal', variant: 'danger' }
+    );
+  } else if (currentRoleKey === 'FACULTY' && workflow.state === 'UNDER_GUIDE_REVIEW') {
+    const isProposedGuide = workflow.details?.proposedGuideId === currentRoleData.id || 
+                            workflow.details?.allocatedGuideId === currentRoleData.id;
+    if (isProposedGuide) {
+      availableActions.push(
+        { key: 'GUIDE_ENDORSE', label: 'Endorse & Forward to Coordinator', variant: 'primary' },
+        { key: 'REQUEST_REVISION', label: 'Request Revisions', variant: 'warning' },
+        { key: 'REJECT', label: 'Decline Mentorship', variant: 'danger' }
+      );
     }
-
-    // Faculty
-    if (currentRoleKey === 'FACULTY') {
-      const isGuide = (workflow.details?.allocatedGuideId === currentRoleData.id || 
-                       workflow.details?.proposedGuideId === currentRoleData.id);
-      if (state === 'UNDER_GUIDE_REVIEW' && isGuide) {
-        actions.push({ key: 'GUIDE_ENDORSE', label: 'Endorse & Forward to Coordinator', variant: 'success' });
-        actions.push({ key: 'REQUEST_REVISION', label: 'Request Revision', variant: 'warning' });
-        actions.push({ key: 'REJECT', label: 'Reject Proposal', variant: 'danger' });
-      }
-      return actions;
+  } else if ((currentRoleKey === 'UG_STUDENT' || currentRoleKey === 'PG_STUDENT') && workflow.state === 'REVISION_REQUESTED') {
+    if (workflow.submittedBy?.id === currentRoleData.id) {
+      availableActions.push(
+        { key: 'STUDENT_RESUBMIT', label: 'Submit Revised Proposal', variant: 'primary' }
+      );
     }
+  }
 
-    // Coordinator
-    if (currentRoleKey === 'COORDINATOR') {
-      if (state === 'UNDER_COORDINATOR_REVIEW') {
-        actions.push({ key: 'COORDINATOR_VERIFY', label: 'Verify Quotas & Forward to HOD', variant: 'success' });
-        actions.push({ key: 'REQUEST_REVISION', label: 'Send Back for Revision', variant: 'warning' });
-        actions.push({ key: 'REJECT', label: 'Reject Proposal', variant: 'danger' });
-      } else if (state === 'UNDER_GUIDE_REVIEW') {
-        actions.push({ key: 'COORDINATOR_EXPEDITE', label: 'Expedite Guide Review', variant: 'neutral' });
-      }
-      return actions;
-    }
-
-    // HOD
-    if (currentRoleKey === 'HOD') {
-      if (state === 'UNDER_HOD_REVIEW') {
-        actions.push({ key: 'HOD_APPROVE', label: 'Grant Final HOD Sanction', variant: 'success' });
-        actions.push({ key: 'REQUEST_REVISION', label: 'Remand to Coordinator / Guide', variant: 'warning' });
-        actions.push({ key: 'REJECT', label: 'Reject Application', variant: 'danger' });
-      } else if (state === 'APPROVED') {
-        actions.push({ key: 'GENERATE_SANCTION_LETTER', label: 'Export Official Sanction Order', variant: 'neutral' });
-      }
-      return actions;
-    }
-
-    return actions;
-  };
-
-  const availableActions = getAvailableActions();
-
-  const handleActionClick = async (actionKey) => {
-    if (actionKey === 'GENERATE_SANCTION_LETTER') {
-      openModal('SANCTION', workflow);
-      return;
-    }
-
+  const handleActionClick = async (actionType) => {
     setSubmitting(true);
     try {
-      await handleTransition(workflow.id, actionKey, remarks);
+      await handleWorkflowTransition(workflow.id, actionType, remarks);
       closeModal();
     } catch {
       setSubmitting(false);
@@ -107,7 +71,7 @@ export const WorkflowDetailModal = ({ workflow }) => {
         <div className="modal-header">
           <div>
             <span className="wf-id" id="modalWfId">{workflow.id}</span>
-            <h2 id="modalWfTitle" style={{ color: '#fff', fontSize: '1.15rem', marginTop: '2px' }}>
+            <h2 id="modalWfTitle" style={{ color: 'var(--text-primary)', fontSize: '1.15rem', marginTop: '2px' }}>
               {workflow.title}
             </h2>
           </div>
@@ -145,7 +109,7 @@ export const WorkflowDetailModal = ({ workflow }) => {
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
             gap: '1rem',
-            background: '#10121a',
+            background: '#f8fafc',
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-md)',
             padding: '1rem',
@@ -155,7 +119,7 @@ export const WorkflowDetailModal = ({ workflow }) => {
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                 Principal Submitter
               </div>
-              <strong style={{ fontSize: '0.85rem', color: '#fff' }}>
+              <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>
                 {workflow.submittedBy?.name || 'N/A'}
               </strong>
             </div>
@@ -171,7 +135,7 @@ export const WorkflowDetailModal = ({ workflow }) => {
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                 Faculty Guide
               </div>
-              <strong style={{ fontSize: '0.85rem', color: '#fff' }}>
+              <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>
                 {workflow.details?.guideName || workflow.details?.allocatedGuideId || 'Pending'}
               </strong>
             </div>
@@ -179,7 +143,7 @@ export const WorkflowDetailModal = ({ workflow }) => {
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                 SLA Clearance Window
               </div>
-              <strong style={{ fontSize: '0.85rem', color: workflow.slaDaysRemaining <= 2 ? 'var(--status-rejected)' : '#fff' }}>
+              <strong style={{ fontSize: '0.85rem', color: workflow.slaDaysRemaining <= 2 ? 'var(--status-rejected)' : 'var(--text-primary)' }}>
                 {workflow.slaDaysRemaining} Days Remaining
               </strong>
             </div>
@@ -194,7 +158,7 @@ export const WorkflowDetailModal = ({ workflow }) => {
               fontSize: '0.85rem',
               color: 'var(--text-secondary)',
               lineHeight: 1.6,
-              background: '#0c0d12',
+              background: '#f8fafc',
               padding: '0.85rem',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--border-subtle)',
@@ -206,21 +170,21 @@ export const WorkflowDetailModal = ({ workflow }) => {
 
           {/* Chronological Audit Ledger */}
           <div style={{ marginBottom: '1.25rem' }}>
-            <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', marginBottom: '0.75rem' }}>
+            <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
               Chronological Audit & Review Ledger
             </h4>
             <div className="audit-timeline">
               {workflow.history && workflow.history.map((h, idx) => (
                 <div key={idx} className="timeline-item">
                   <div className="timeline-icon">
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#818cf8', display: 'inline-block' }}></span>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'inline-block' }}></span>
                   </div>
                   <div className="timeline-content">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <strong style={{ fontSize: '0.82rem', color: '#fff' }}>{h.action}</strong>
+                      <strong style={{ fontSize: '0.82rem', color: 'var(--text-primary)' }}>{h.action}</strong>
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{h.timestamp}</span>
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', marginTop: '2px' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', marginTop: '2px', fontWeight: 500 }}>
                       {h.actorName} ({h.actorRole})
                     </div>
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
@@ -236,14 +200,12 @@ export const WorkflowDetailModal = ({ workflow }) => {
           {availableActions.length > 0 && (
             <div style={{
               marginTop: '1rem',
-              borderTop: '1px solid var(--border-subtle)',
-              background: '#161924',
+              background: '#f8fafc',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--border-subtle)',
-              padding: '1rem',
-              borderRadius: 'var(--radius-md)'
+              padding: '1rem'
             }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fff', marginBottom: '0.5rem' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
                 Authority Clearance Controls ({currentRoleData.title})
               </div>
               <div style={{ marginBottom: '0.75rem' }}>

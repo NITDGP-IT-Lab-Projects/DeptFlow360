@@ -276,7 +276,7 @@ export const DashboardView = () => {
                     <tr key={wf.id}>
                       <td><span className="wf-id">{wf.id}</span></td>
                       <td>
-                        <div style={{ fontWeight: 600, color: '#fff' }}>{wf.title}</div>
+                        <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{wf.title}</div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                           {wf.submittedBy?.name}
                         </div>
@@ -337,7 +337,7 @@ export const DashboardView = () => {
                   </div>
                   <div className="timeline-content">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <strong style={{ fontSize: '0.82rem', color: '#fff' }}>{event.action}</strong>
+                      <strong style={{ fontSize: '0.82rem', color: 'var(--text-primary)' }}>{event.action}</strong>
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{event.timestamp}</span>
                     </div>
                     <div style={{ fontSize: '0.74rem', color: 'var(--accent-cyan)', marginTop: '2px', fontWeight: 500 }}>

@@ -32,8 +32,8 @@ export const FacultyDirView = () => {
                   {initials}
                 </div>
                 <div>
-                  <h3 style={{ color: '#fff', fontSize: '1.05rem', margin: 0 }}>{faculty.name}</h3>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--accent-cyan)' }}>{faculty.designation}</div>
+                  <h3 style={{ color: 'var(--text-primary)', fontSize: '1.05rem', margin: 0 }}>{faculty.name}</h3>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--accent-primary)', fontWeight: 600 }}>{faculty.designation}</div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                       <IconMapPin size={12} /> {faculty.room}
@@ -61,11 +61,11 @@ export const FacultyDirView = () => {
               </div>
 
               {/* Quotas */}
-              <div style={{ background: '#10121a', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem', marginBottom: '1rem' }}>
+              <div style={{ background: '#f8fafc', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem', marginBottom: '1rem' }}>
                 <div style={{ marginBottom: '0.65rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', marginBottom: '4px' }}>
                     <span style={{ color: 'var(--text-secondary)' }}>UG Capstone Slots</span>
-                    <strong style={{ color: '#fff' }}>{faculty.ugQuotaCurrent} / {faculty.ugQuotaMax}</strong>
+                    <strong style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{faculty.ugQuotaCurrent} / {faculty.ugQuotaMax}</strong>
                   </div>
                   <div className="quota-bar-track">
                     <div 
@@ -78,7 +78,7 @@ export const FacultyDirView = () => {
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', marginBottom: '4px' }}>
                     <span style={{ color: 'var(--text-secondary)' }}>PG Thesis Slots</span>
-                    <strong style={{ color: '#fff' }}>{faculty.pgQuotaCurrent} / {faculty.pgQuotaMax}</strong>
+                    <strong style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{faculty.pgQuotaCurrent} / {faculty.pgQuotaMax}</strong>
                   </div>
                   <div className="quota-bar-track">
                     <div 
@@ -99,11 +99,26 @@ export const FacultyDirView = () => {
                     No teams currently allocated
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {supervisedTeams.map(t => (
-                      <span key={t.teamId} className="type-tag ug" style={{ fontSize: '0.72rem' }}>
-                        {t.teamId}: {t.leadName}
-                      </span>
+                      <div 
+                        key={t.teamId} 
+                        style={{
+                          background: '#f8fafc',
+                          padding: '0.55rem 0.75rem',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.76rem',
+                          border: '1px solid var(--border-subtle)',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <div>
+                          <strong style={{ color: 'var(--text-primary)' }}>{t.teamId}</strong>: {t.title}
+                        </div>
+                        <span className="type-tag ug" style={{ fontSize: '0.65rem' }}>{t.domain}</span>
+                      </div>
                     ))}
                   </div>
                 )}

@@ -40,7 +40,7 @@ export const UgPgDeskView = () => {
     <div id="view-ugpg_desk" className="view-section active">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h2 style={{ fontFamily: 'var(--font-heading)', color: '#fff', fontSize: '1.2rem', marginBottom: '4px' }}>
+          <h2 style={{ fontFamily: 'var(--font-heading)', color: 'var(--text-primary)', fontSize: '1.2rem', marginBottom: '4px' }}>
             Academic Submissions & Project Lifecycle
           </h2>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
@@ -73,11 +73,11 @@ export const UgPgDeskView = () => {
                     <span className={`type-tag ${wf.category.toLowerCase()}`}>{wf.category}</span>
                     <span className={getStatusBadgeClass(wf.state)}>{formatStateLabel(wf.state)}</span>
                   </div>
-                  <h3 style={{ color: '#fff', fontSize: '1.08rem', margin: '4px 0' }}>{wf.title}</h3>
+                  <h3 style={{ color: 'var(--text-primary)', fontSize: '1.08rem', margin: '4px 0' }}>{wf.title}</h3>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                     Submitter: <strong style={{ color: 'var(--text-secondary)' }}>{wf.submittedBy?.name}</strong> • 
                     Domain: <span style={{ color: 'var(--accent-cyan)' }}>{wf.details?.domain}</span> • 
-                    Supervisor: <strong style={{ color: '#fff' }}>{wf.details?.guideName || wf.details?.allocatedGuideId || 'Pending Allotment'}</strong>
+                    Supervisor: <strong style={{ color: 'var(--text-primary)' }}>{wf.details?.guideName || wf.details?.allocatedGuideId || 'Pending Allotment'}</strong>
                   </div>
                 </div>
 
@@ -94,7 +94,7 @@ export const UgPgDeskView = () => {
               {/* Milestones Progression */}
               {wf.milestones && wf.milestones.length > 0 && (
                 <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)' }}>
-                  <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
+                  <div style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
                     Continuous Assessment Milestones
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
@@ -102,14 +102,14 @@ export const UgPgDeskView = () => {
                       <div 
                         key={m.id || idx} 
                         style={{
-                          background: '#10121a',
+                          background: '#f8fafc',
                           border: '1px solid var(--border-subtle)',
                           borderRadius: 'var(--radius-md)',
                           padding: '0.85rem'
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                          <strong style={{ fontSize: '0.82rem', color: '#fff' }}>{m.name}</strong>
+                          <strong style={{ fontSize: '0.82rem', color: 'var(--text-primary)' }}>{m.name}</strong>
                           <span 
                             className={`status-badge ${m.status === 'EVALUATED' ? 'APPROVED' : 'UNDER_GUIDE_REVIEW'}`}
                             style={{ fontSize: '0.65rem' }}
@@ -123,12 +123,12 @@ export const UgPgDeskView = () => {
                         {m.score !== null && m.score !== undefined ? (
                           <div style={{ marginTop: '6px', fontSize: '0.85rem', fontWeight: 700, color: 'var(--status-approved)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <IconCheckCircle size={13} />
-                            <span>Score: {m.score} / {m.maxScore || 100}</span>
+                            <span>Graded: {m.score} / 100</span>
                           </div>
                         ) : (
-                          <div style={{ marginTop: '6px', fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <div style={{ marginTop: '6px', fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <IconClock size={12} />
-                            <span>Defense evaluation pending</span>
+                            <span>Evaluation Pending</span>
                           </div>
                         )}
                       </div>
