@@ -1,11 +1,17 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext.jsx';
+import {
+  IconScale,
+  IconCheckCircle,
+  IconClock,
+  IconFileText,
+  IconSliders
+} from '../icons/Icons.jsx';
 
 export const RubricEvalView = () => {
   const { workflows, openModal, currentRoleKey } = useApp();
 
   const evaluatableWorkflows = workflows.filter(w => w.milestones && w.milestones.length > 0);
-
   const canGrade = currentRoleKey === 'FACULTY' || currentRoleKey === 'COORDINATOR' || currentRoleKey === 'HOD';
 
   return (
@@ -13,8 +19,11 @@ export const RubricEvalView = () => {
       {/* Criteria Framework Summary */}
       <div className="card-panel" style={{ marginBottom: '1.5rem' }}>
         <div className="card-panel-header">
-          <h2>⚖️ Continuous Assessment Rubric Framework</h2>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>ABET / NBA Compliant Scoring</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <IconScale size={18} className="text-cyan" />
+            <h2>Continuous Assessment Rubric Framework</h2>
+          </div>
+          <span className="live-pill">ABET / NBA Compliant Scoring</span>
         </div>
         <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
           Evaluations are computed across three standardized dimensions: 
@@ -26,17 +35,17 @@ export const RubricEvalView = () => {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
           <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', textTransform: 'uppercase', fontWeight: 700 }}>Criterion 1 (30 pts)</span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Criterion 1 (30 pts)</span>
             <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.85rem', margin: '4px 0' }}>Literature Review & SOTA</div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Citation quality, problem gap clarity, benchmark metrics</div>
           </div>
           <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', textTransform: 'uppercase', fontWeight: 700 }}>Criterion 2 (40 pts)</span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Criterion 2 (40 pts)</span>
             <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.85rem', margin: '4px 0' }}>Methodology & Technical Rigor</div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Mathematical rigor, system architecture, modular software testing</div>
           </div>
           <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', textTransform: 'uppercase', fontWeight: 700 }}>Criterion 3 (30 pts)</span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Criterion 3 (30 pts)</span>
             <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.85rem', margin: '4px 0' }}>Viva Voce & Demonstration</div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Working prototype, cross-examination defense, individual contribution</div>
           </div>
@@ -52,7 +61,7 @@ export const RubricEvalView = () => {
         ) : (
           evaluatableWorkflows.map(wf => (
             <div key={wf.id} className="card-panel" style={{ marginBottom: '1.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span className="wf-id">{wf.id}</span>
@@ -92,7 +101,7 @@ export const RubricEvalView = () => {
                         </div>
                         {isEvaluated && m.feedback && (
                           <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                            💬 <em>"{m.feedback}"</em> — <span style={{ color: 'var(--accent-cyan)' }}>{m.evaluator}</span>
+                            <em>"{m.feedback}"</em> — <span style={{ color: 'var(--accent-cyan)' }}>{m.evaluator}</span>
                           </div>
                         )}
                       </div>
@@ -117,8 +126,10 @@ export const RubricEvalView = () => {
                           <button 
                             className="btn btn-primary btn-sm"
                             onClick={() => openModal('RUBRIC', { workflow: wf, milestone: m })}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                           >
-                            {isEvaluated ? 'Re-Score Rubric' : 'Score Defense →'}
+                            <IconSliders size={13} />
+                            <span>{isEvaluated ? 'Re-Score Rubric' : 'Score Defense'}</span>
                           </button>
                         )}
                       </div>

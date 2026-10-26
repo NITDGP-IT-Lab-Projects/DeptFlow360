@@ -1,5 +1,14 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext.jsx';
+import {
+  IconZap,
+  IconRefresh,
+  IconUsers,
+  IconTarget,
+  IconCheckCircle,
+  IconAlertCircle,
+  IconSliders
+} from '../icons/Icons.jsx';
 
 export const AllocationView = () => {
   const { 
@@ -19,6 +28,12 @@ export const AllocationView = () => {
       {/* Action Banner */}
       <div className="role-directive-banner">
         <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <span className="live-pill">
+              <span className="live-pill-dot"></span> Gale-Shapley Stable Matcher
+            </span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Polynomial Time Complexity O(N × M)</span>
+          </div>
           <h2 style={{ fontSize: '1.15rem', color: '#fff', marginBottom: '4px' }}>
             Priority & Preference-Based Project Allocation Engine
           </h2>
@@ -26,20 +41,24 @@ export const AllocationView = () => {
             Matches student project preferences against faculty supervision quotas using Gale-Shapley stable matching with merit weightage.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '0.6rem' }}>
+        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <button 
             className="btn btn-primary" 
             onClick={handleRunAllocation}
             id="btnRunAllocation"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
           >
-            ⚡ Run Automated Matcher
+            <IconZap size={15} />
+            <span>Run Automated Matcher</span>
           </button>
           <button 
             className="btn btn-secondary" 
             onClick={handleResetAllocations}
             id="btnResetAllocation"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
           >
-            Revert Baseline
+            <IconRefresh size={14} />
+            <span>Revert Baseline</span>
           </button>
         </div>
       </div>
@@ -55,7 +74,7 @@ export const AllocationView = () => {
                 <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
               </div>
               <span style={{ color: '#4ade80', fontWeight: 700, fontSize: '0.82rem', fontFamily: 'var(--font-mono)' }}>
-                gale-shapley@deptflow360:~$ match --priority=cgpa
+                gale-shapley@deptflow360:~$ match --priority=cgpa --quotas=strict
               </span>
             </div>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', fontFamily: 'var(--font-mono)' }}>
@@ -75,7 +94,10 @@ export const AllocationView = () => {
         {/* Left: Faculty Quotas */}
         <div className="card-panel">
           <div className="card-panel-header">
-            <h2>👨‍🏫 Faculty Supervisory Capacities</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <IconUsers size={18} className="text-cyan" />
+              <h2>Faculty Supervisory Capacities</h2>
+            </div>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>UG / PG Quota Limits</span>
           </div>
           <div id="facultyQuotaList">
@@ -131,7 +153,10 @@ export const AllocationView = () => {
         {/* Right: Student Allocation Grid */}
         <div className="card-panel">
           <div className="card-panel-header">
-            <h2>🎒 Student Bidding & Allocation Matrix</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <IconTarget size={18} className="text-indigo" />
+              <h2>Student Bidding & Allocation Matrix</h2>
+            </div>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Merit & Preference Match</span>
           </div>
           <div className="table-responsive">
@@ -190,12 +215,14 @@ export const AllocationView = () => {
                       <td>
                         {guide ? (
                           <div>
-                            <span className="status-badge APPROVED" style={{ fontSize: '0.75rem' }}>
-                              ✅ {guide.name}
+                            <span className="status-badge APPROVED" style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <IconCheckCircle size={12} />
+                              <span>{guide.name}</span>
                             </span>
                             {team.overrideAudit && (
-                              <div style={{ fontSize: '0.68rem', color: 'var(--status-pending)', marginTop: '2px' }}>
-                                ⚠️ Manually Reassigned
+                              <div style={{ fontSize: '0.68rem', color: 'var(--status-pending)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                <IconAlertCircle size={11} />
+                                <span>Manually Reassigned</span>
                               </div>
                             )}
                           </div>
@@ -210,8 +237,10 @@ export const AllocationView = () => {
                           <button 
                             className="btn btn-secondary btn-sm"
                             onClick={() => openModal('OVERRIDE', team)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                           >
-                            Reassign
+                            <IconSliders size={12} />
+                            <span>Reassign</span>
                           </button>
                         ) : (
                           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>

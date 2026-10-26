@@ -1,5 +1,10 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext.jsx';
+import {
+  IconUsers,
+  IconMapPin,
+  IconMail
+} from '../icons/Icons.jsx';
 
 export const FacultyDirView = () => {
   const { facultyList, teamsList } = useApp();
@@ -12,23 +17,41 @@ export const FacultyDirView = () => {
           const ugPct = faculty.ugQuotaMax > 0 ? (faculty.ugQuotaCurrent / faculty.ugQuotaMax) * 100 : 0;
           const pgPct = faculty.pgQuotaMax > 0 ? (faculty.pgQuotaCurrent / faculty.pgQuotaMax) * 100 : 0;
 
+          // Generate initials
+          const initials = faculty.name
+            .split(' ')
+            .filter(n => !n.startsWith('Dr.'))
+            .map(n => n[0])
+            .join('')
+            .slice(0, 2) || 'FC';
+
           return (
             <div key={faculty.id} className="card-panel">
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                <div style={{ fontSize: '2.4rem' }}>{faculty.avatar || '👨‍🏫'}</div>
+                <div className="faculty-avatar-monogram">
+                  {initials}
+                </div>
                 <div>
                   <h3 style={{ color: '#fff', fontSize: '1.05rem', margin: 0 }}>{faculty.name}</h3>
                   <div style={{ fontSize: '0.78rem', color: 'var(--accent-cyan)' }}>{faculty.designation}</div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>📍 {faculty.room} • ✉️ {faculty.email}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <IconMapPin size={12} /> {faculty.room}
+                    </span>
+                    <span>•</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <IconMail size={12} /> {faculty.email}
+                    </span>
+                  </div>
                 </div>
               </div>
 
               {/* Specializations */}
               <div style={{ marginBottom: '1rem' }}>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>
                   Research Domains
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
                   {faculty.specializations && faculty.specializations.map((spec, idx) => (
                     <span key={idx} className="type-tag" style={{ fontSize: '0.7rem' }}>
                       {spec}
@@ -39,8 +62,8 @@ export const FacultyDirView = () => {
 
               {/* Quotas */}
               <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem', marginBottom: '1rem' }}>
-                <div style={{ marginBottom: '0.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', marginBottom: '3px' }}>
+                <div style={{ marginBottom: '0.65rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', marginBottom: '4px' }}>
                     <span style={{ color: 'var(--text-secondary)' }}>UG Capstone Slots</span>
                     <strong style={{ color: '#fff' }}>{faculty.ugQuotaCurrent} / {faculty.ugQuotaMax}</strong>
                   </div>
@@ -53,7 +76,7 @@ export const FacultyDirView = () => {
                 </div>
 
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', marginBottom: '3px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', marginBottom: '4px' }}>
                     <span style={{ color: 'var(--text-secondary)' }}>PG Thesis Slots</span>
                     <strong style={{ color: '#fff' }}>{faculty.pgQuotaCurrent} / {faculty.pgQuotaMax}</strong>
                   </div>
@@ -66,31 +89,23 @@ export const FacultyDirView = () => {
                 </div>
               </div>
 
-              {/* Allocated Teams */}
+              {/* Supervised Roster */}
               <div>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>
-                  Supervised Scholars ({supervisedTeams.length})
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>
+                  Current Supervised Teams ({supervisedTeams.length})
                 </div>
                 {supervisedTeams.length === 0 ? (
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                    No candidates currently assigned
-                  </span>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                    No teams currently allocated
+                  </div>
                 ) : (
-                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                     {supervisedTeams.map(t => (
-                      <li 
-                        key={t.teamId}
-                        style={{
-                          fontSize: '0.75rem',
-                          color: 'var(--text-secondary)',
-                          padding: '4px 0',
-                          borderBottom: '1px solid rgba(255,255,255,0.04)'
-                        }}
-                      >
-                        <strong style={{ color: '#fff' }}>[{t.teamId}]</strong> {t.leadName} — <em>{t.title.substring(0, 45)}...</em>
-                      </li>
+                      <span key={t.teamId} className="type-tag ug" style={{ fontSize: '0.72rem' }}>
+                        {t.teamId}: {t.leadName}
+                      </span>
                     ))}
-                  </ul>
+                  </div>
                 )}
               </div>
             </div>
