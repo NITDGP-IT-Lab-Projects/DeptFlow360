@@ -92,10 +92,14 @@ export const SanctionLetterModal = ({ workflow }) => {
 
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '1.1rem', fontFamily: 'cursive', color: '#0f172a', marginBottom: '4px' }}>
-                  Dr. Rajeshwar Sen
+                  {workflow.sanctionedBy?.name || 'Head of Department'}
                 </div>
-                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>Dr. Rajeshwar Sen</div>
-                <div style={{ fontSize: '0.75rem', color: '#475569' }}>Professor & Head of Department</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
+                  {workflow.sanctionedBy?.name || 'Head of Department'}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#475569' }}>
+                  {workflow.sanctionedBy?.title || 'Professor & Head of Department'}
+                </div>
                 <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Digital Verification Signature Verified</div>
               </div>
             </div>
