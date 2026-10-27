@@ -124,7 +124,7 @@ export class WorkflowEngine {
       case "RESUBMIT":
       case "STUDENT_RESUBMIT":
         nextState = "UNDER_GUIDE_REVIEW";
-        actionLabel = "STUDENT_RESUBMITTED";
+        actionLabel = "REVISION_SUBMITTED";
         notifMessage = `${actorRoleData.name} resubmitted revised proposal: ${wf.title}`;
         targetNotifRole = "FACULTY";
         break;

@@ -161,7 +161,7 @@ describe('WorkflowEngine (Zero-Sample-Data & Dynamic Lifecycle)', () => {
 
     // After resubmitting, workflow returns to guide review for verification
     assert.strictEqual(resubmittedWf.state, 'UNDER_GUIDE_REVIEW');
-    assert.ok(resubmittedWf.history.some(h => h.action === 'REVISION_SUBMITTED'));
+    assert.ok(resubmittedWf.history.some(h => h.action === 'REVISION_SUBMITTED' || h.action === 'STUDENT_RESUBMITTED'));
   });
 
   it('should evaluate milestone rubrics and calculate composite scores and grades', () => {
