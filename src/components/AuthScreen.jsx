@@ -22,20 +22,6 @@ export const AuthScreen = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const quickAccounts = [
-    { label: 'HOD', name: 'Dr. Rajeshwar Sen', email: 'hod.it@university.edu', pass: 'Admin@123', role: 'Head of Department' },
-    { label: 'Coordinator', name: 'Dr. Ananya Roy', email: 'ananya.roy@university.edu', pass: 'Coord@123', role: 'Project Coordinator' },
-    { label: 'Faculty Guide', name: 'Dr. Vikramaditya Das', email: 'vikram.das@university.edu', pass: 'Guide@123', role: 'Faculty Supervisor' },
-    { label: 'PG Scholar', name: 'Sneha Mukherjee', email: 'sneha.m@university.edu', pass: 'Student@123', role: 'M.Tech Scholar' },
-    { label: 'UG Team 04', name: 'Rahul Verma', email: 'team04.lead@university.edu', pass: 'Student@123', role: 'B.Tech Capstone Lead' }
-  ];
-
-  const handleFillQuick = (acc) => {
-    setEmail(acc.email);
-    setPassword(acc.pass);
-    setErrorMsg('');
-  };
-
   const onSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
@@ -147,39 +133,21 @@ export const AuthScreen = () => {
           </div>
         )}
 
-        {/* Demo Quick Logins for Evaluator Ease */}
         {mode === 'SIGNIN' && (
           <div style={{
             background: 'var(--bg-subtle)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-md)',
-            padding: '0.85rem',
-            marginBottom: '1.25rem'
+            padding: '0.75rem 0.85rem',
+            marginBottom: '1.25rem',
+            fontSize: '0.78rem',
+            color: 'var(--text-muted)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}>
-            <div style={{
-              fontSize: '0.7rem',
-              color: 'var(--text-muted)',
-              textTransform: 'uppercase',
-              fontWeight: 700,
-              letterSpacing: '0.04em',
-              marginBottom: '8px'
-            }}>
-              Quick-Fill Test Accounts (Click to Populate)
-            </div>
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              {quickAccounts.map(acc => (
-                <button
-                  key={acc.label}
-                  type="button"
-                  className="filter-pill"
-                  style={{ fontSize: '0.72rem', padding: '0.25rem 0.6rem' }}
-                  onClick={() => handleFillQuick(acc)}
-                  title={`${acc.name} — ${acc.role}`}
-                >
-                  <strong>{acc.label}:</strong> {acc.name.split(' ')[0]}
-                </button>
-              ))}
-            </div>
+            <IconShield size={16} className="text-indigo" />
+            <span>Enter your registered institutional credentials to access your dashboard.</span>
           </div>
         )}
 

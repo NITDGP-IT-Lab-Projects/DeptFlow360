@@ -45,10 +45,19 @@ export const AllocationView = () => {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button 
+            className="btn btn-primary" 
+            onClick={() => openModal('ADD_TEAM')}
+            id="btnRegisterTeam"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
+          >
+            <IconUsers size={14} />
+            <span>+ Register Team</span>
+          </button>
           {canOverride ? (
             <>
               <button 
-                className="btn btn-primary" 
+                className="btn btn-secondary" 
                 onClick={handleRunAllocation}
                 id="btnRunAllocation"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem' }}
@@ -109,6 +118,15 @@ export const AllocationView = () => {
           </div>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>UG / PG Load Constraints</span>
         </div>
+        {facultyList.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: 'var(--text-muted)' }}>
+            <IconUsers size={28} style={{ margin: '0 auto 0.5rem auto', opacity: 0.5 }} />
+            <p style={{ margin: 0, fontSize: '0.85rem' }}>No faculty members registered in directory yet.</p>
+            <button className="btn btn-secondary" style={{ marginTop: '0.75rem', fontSize: '0.78rem' }} onClick={() => openModal('ADD_FACULTY')}>
+              + Add Faculty Mentor
+            </button>
+          </div>
+        ) : (
         <div id="facultyQuotaList" className="faculty-quota-grid">
           {facultyList.map(faculty => {
             const ugPct = faculty.ugQuotaMax > 0 ? (faculty.ugQuotaCurrent / faculty.ugQuotaMax) * 100 : 0;
@@ -157,6 +175,7 @@ export const AllocationView = () => {
             );
           })}
         </div>
+        )}
       </div>
 
       {/* Section 2: Student Allocation Table (Spacious Full Width Panel) */}
@@ -168,6 +187,20 @@ export const AllocationView = () => {
           </div>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Merit Precedence & Stable Matching Result</span>
         </div>
+        {teamsList.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', color: 'var(--text-muted)' }}>
+            <IconTarget size={36} style={{ margin: '0 auto 0.75rem auto', opacity: 0.5 }} />
+            <h3 style={{ fontSize: '1.05rem', color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+              No Project Teams in Allocation Pool
+            </h3>
+            <p style={{ fontSize: '0.82rem', maxWidth: '440px', margin: '0 auto 1.25rem auto' }}>
+              Register capstone project teams directly or submit student proposals to initialize the Gale-Shapley matching matrix.
+            </p>
+            <button className="btn btn-primary" onClick={() => openModal('ADD_TEAM')}>
+              + Register First Capstone Team
+            </button>
+          </div>
+        ) : (
         <div className="table-responsive">
           <table className="data-table" style={{ minWidth: '820px' }}>
             <thead>
@@ -277,6 +310,7 @@ export const AllocationView = () => {
             </tbody>
           </table>
         </div>
+        )}
       </div>
     </div>
   );

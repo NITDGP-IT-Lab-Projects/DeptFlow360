@@ -204,7 +204,7 @@ exports.transitionWorkflow = async (req, res) => {
       case 'RESUBMIT':
       case 'STUDENT_RESUBMIT':
         nextState = 'UNDER_GUIDE_REVIEW';
-        actionLabel = 'STUDENT_RESUBMITTED';
+        actionLabel = 'REVISION_SUBMITTED';
         notifMessage = `${actorName} resubmitted: ${wf.title}`;
         targetNotifRole = 'FACULTY';
         break;

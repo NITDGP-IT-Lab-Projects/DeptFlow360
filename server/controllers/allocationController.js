@@ -12,6 +12,50 @@ exports.getTeams = async (req, res) => {
   }
 };
 
+// POST /api/allocation/teams - Register a new project team
+exports.createTeam = async (req, res) => {
+  try {
+    const { teamId, type, leadName, members, avgCgpa, domain, title, preferences, allocatedGuideId, status } = req.body;
+    if (!leadName || !title) {
+      return res.status(400).json({ success: false, error: 'Lead name and project title are required.' });
+    }
+    const tId = teamId || `${type || 'UG'}-TEAM-${Date.now().toString().slice(-4)}`;
+
+    let existing = await ProjectTeam.findOne({ teamId: tId });
+    if (existing) {
+      existing.leadName = leadName.trim();
+      existing.title = title.trim();
+      existing.type = type || existing.type;
+      if (avgCgpa !== undefined) existing.avgCgpa = Number(avgCgpa);
+      if (domain) existing.domain = domain;
+      if (members) existing.members = Array.isArray(members) ? members : members.split(',').map(m => m.trim());
+      if (preferences) existing.preferences = Array.isArray(preferences) ? preferences : [];
+      if (allocatedGuideId !== undefined) existing.allocatedGuideId = allocatedGuideId;
+      if (status) existing.status = status;
+      await existing.save();
+      return res.status(200).json({ success: true, data: existing, updated: true });
+    }
+
+    const team = new ProjectTeam({
+      teamId: tId,
+      type: type || 'UG',
+      leadName: leadName.trim(),
+      members: Array.isArray(members) ? members : (members ? members.split(',').map(m => m.trim()) : [leadName.trim()]),
+      avgCgpa: Number(avgCgpa) || 8.0,
+      domain: domain || 'Software Engineering & AI',
+      title: title.trim(),
+      preferences: Array.isArray(preferences) ? preferences : [],
+      allocatedGuideId: allocatedGuideId || null,
+      status: status || 'UNALLOCATED'
+    });
+
+    await team.save();
+    res.status(201).json({ success: true, data: team });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 // GET /api/allocation/quotas
 exports.getQuotas = async (req, res) => {
   try {

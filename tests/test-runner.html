@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>DAWMS Browser Test Runner</title>
+  <title>DAWMS Browser Test Runner (Zero-Sample-Data & Dynamic Onboarding)</title>
   <style>
     body { font-family: monospace; background: #0b0f19; color: #f8fafc; padding: 2rem; }
     .pass { color: #10b981; }
@@ -13,7 +13,7 @@
   </style>
 </head>
 <body>
-  <h1>DAWMS Unit Test Suite Execution</h1>
+  <h1>DAWMS Unit Test Suite (Zero-Sample-Data & Dynamic Architecture)</h1>
   <div id="output"></div>
   <div id="summary">Running tests...</div>
 
@@ -61,195 +61,251 @@
       output.appendChild(t);
     }
 
-    // RUN SUITE 1: AllocationEngine Tests
-    suite('AllocationEngine Tests', () => {
+    // RUN SUITE 1: AllocationEngine Tests (Zero Data & Dynamic Provisioning)
+    suite('AllocationEngine (Zero-Sample-Data & Gale-Shapley Matching)', () => {
       let engine;
       const beforeEach = () => {
         DeptStore.reset();
         engine = new AllocationEngine(DeptStore);
       };
 
-      test('1. should initialize with faculty quotas and project teams', () => {
+      test('1. should initialize cleanly with zero faculty and zero teams', () => {
         beforeEach();
         const faculty = engine.getFacultyList();
         const teams = engine.getTeams();
         assert.ok(Array.isArray(faculty));
-        assert.strictEqual(faculty.length, 5);
+        assert.strictEqual(faculty.length, 0);
         assert.ok(Array.isArray(teams));
-        assert.strictEqual(teams.length, 8);
+        assert.strictEqual(teams.length, 0);
       });
 
-      test('2. should calculate live quotas accurately based on assignments', () => {
+      test('2. should dynamically add faculty members with quota limits', () => {
         beforeEach();
-        const quotas = engine.calculateQuotas();
-        assert.ok(quotas['FAC-01']);
-        assert.ok(quotas['FAC-02']);
-        assert.ok(quotas['FAC-03']);
-        const teams = engine.getTeams();
-        const fac3UgTeams = teams.filter(t => t.allocatedGuideId === 'FAC-03' && t.type === 'UG').length;
-        assert.strictEqual(quotas['FAC-03'].ugCurrent, fac3UgTeams);
-      });
-
-      test('3. should execute automated Gale-Shapley matching without exceeding faculty quotas', () => {
-        beforeEach();
-        const result = engine.runAutomatedMatching();
-        assert.strictEqual(result.success, true);
-        assert.ok(Array.isArray(result.logs));
-        assert.ok(result.logs.length > 0);
-        const updatedTeams = engine.getTeams();
+        engine.addFaculty({
+          id: 'FAC-DYN-01',
+          name: 'Dr. Ramesh Sen',
+          role: 'HOD',
+          email: 'r.sen@university.edu',
+          ugQuotaMax: 3,
+          pgQuotaMax: 2
+        });
+        engine.addFaculty({
+          id: 'FAC-DYN-02',
+          name: 'Dr. Priya Roy',
+          role: 'FACULTY',
+          email: 'p.roy@university.edu',
+          ugQuotaMax: 2,
+          pgQuotaMax: 1
+        });
         const faculty = engine.getFacultyList();
-        updatedTeams.forEach(team => {
-          assert.ok(team.allocatedGuideId !== null, `Team ${team.teamId} should be allocated a guide`);
-          assert.strictEqual(team.status, 'ALLOCATED');
-        });
-        const quotaMap = engine.calculateQuotas();
-        faculty.forEach(f => {
-          assert.ok(quotaMap[f.id].ugCurrent <= f.ugQuotaMax);
-          assert.ok(quotaMap[f.id].pgCurrent <= f.pgQuotaMax);
-        });
+        assert.strictEqual(faculty.length, 2);
+        assert.strictEqual(engine.getFacultyById('FAC-DYN-01').name, 'Dr. Ramesh Sen');
       });
 
-      test('4. should allow coordinator/HOD to execute manual override with audit justification', () => {
+      test('3. should dynamically register project teams and calculate quotas accurately', () => {
         beforeEach();
-        const targetTeamId = 'UG-TEAM-05';
-        const newFacultyId = 'FAC-05';
-        const reason = 'Special embedded hardware requirement verified by coordinator.';
-        const actorName = 'Dr. Ananya Roy';
-        const overridden = engine.manualOverride(targetTeamId, newFacultyId, reason, actorName);
-        assert.strictEqual(overridden.allocatedGuideId, newFacultyId);
+        engine.addFaculty({ id: 'FAC-1', name: 'Dr. One', ugQuotaMax: 2, pgQuotaMax: 1 });
+        engine.addTeam({
+          teamId: 'UG-TEAM-01',
+          type: 'UG',
+          leadName: 'Student Alpha',
+          avgCgpa: 8.8,
+          domain: 'Cloud',
+          title: 'Cloud Edge',
+          preferences: ['FAC-1'],
+          allocatedGuideId: 'FAC-1'
+        });
+        const quotas = engine.calculateQuotas();
+        assert.strictEqual(quotas['FAC-1'].ugCurrent, 1);
+        assert.strictEqual(quotas['FAC-1'].pgCurrent, 0);
+      });
+
+      test('4. should execute automated Gale-Shapley matching respecting merit and capacity constraints', () => {
+        beforeEach();
+        engine.addFaculty({ id: 'F-GUIDE-A', name: 'Guide A', ugQuotaMax: 1, pgQuotaMax: 1 });
+        engine.addFaculty({ id: 'F-GUIDE-B', name: 'Guide B', ugQuotaMax: 2, pgQuotaMax: 1 });
+
+        // Team 1: CGPA 9.5
+        engine.addTeam({
+          teamId: 'T1',
+          type: 'UG',
+          leadName: 'Lead 1',
+          avgCgpa: 9.5,
+          domain: 'AI',
+          title: 'Project 1',
+          preferences: ['F-GUIDE-A', 'F-GUIDE-B']
+        });
+        // Team 2: CGPA 8.2
+        engine.addTeam({
+          teamId: 'T2',
+          type: 'UG',
+          leadName: 'Lead 2',
+          avgCgpa: 8.2,
+          domain: 'AI',
+          title: 'Project 2',
+          preferences: ['F-GUIDE-A', 'F-GUIDE-B']
+        });
+
+        const res = engine.runAutomatedMatching();
+        assert.strictEqual(res.success, true);
+
+        const updatedT1 = engine.getTeams().find(t => t.teamId === 'T1');
+        const updatedT2 = engine.getTeams().find(t => t.teamId === 'T2');
+        assert.strictEqual(updatedT1.allocatedGuideId, 'F-GUIDE-A');
+        assert.strictEqual(updatedT2.allocatedGuideId, 'F-GUIDE-B');
+      });
+
+      test('5. should allow manual override with audit justification', () => {
+        beforeEach();
+        engine.addFaculty({ id: 'F-A', name: 'Guide A', ugQuotaMax: 2, pgQuotaMax: 1 });
+        engine.addFaculty({ id: 'F-B', name: 'Guide B', ugQuotaMax: 2, pgQuotaMax: 1 });
+        engine.addTeam({
+          teamId: 'TEAM-X',
+          type: 'UG',
+          leadName: 'Lead X',
+          avgCgpa: 8.0,
+          domain: 'IoT',
+          title: 'IoT Sensors',
+          preferences: ['F-A'],
+          allocatedGuideId: 'F-A'
+        });
+
+        const overridden = engine.manualOverride('TEAM-X', 'F-B', 'Lab hardware requirement', 'Dr. Coordinator');
+        assert.strictEqual(overridden.allocatedGuideId, 'F-B');
         assert.strictEqual(overridden.status, 'MANUALLY_ALLOCATED');
-        assert.ok(overridden.overrideAudit);
-        assert.strictEqual(overridden.overrideAudit.by, actorName);
-        assert.strictEqual(overridden.overrideAudit.reason, reason);
-      });
-
-      test('5. should revert to default allocations upon reset', () => {
-        beforeEach();
-        engine.runAutomatedMatching();
-        engine.resetAllocations();
-        const teams = engine.getTeams();
-        const unallocated = teams.find(t => t.teamId === 'UG-TEAM-05');
-        assert.strictEqual(unallocated.allocatedGuideId, null);
-        assert.strictEqual(unallocated.status, 'UNALLOCATED');
+        assert.strictEqual(overridden.overrideAudit.by, 'Dr. Coordinator');
       });
     });
 
-    // RUN SUITE 2: WorkflowEngine Tests
-    suite('WorkflowEngine Tests', () => {
+    // RUN SUITE 2: WorkflowEngine Tests (Zero Data & Dynamic Lifecycle)
+    suite('WorkflowEngine (Zero-Sample-Data & Dynamic Approvals)', () => {
       let engine;
       const beforeEach = () => {
         DeptStore.reset();
         engine = new WorkflowEngine(DeptStore);
       };
 
-      test('6. should initialize with baseline workflows', () => {
+      const mockStudent = { id: 'STU-01', name: 'Student Lead', role: 'UG_STUDENT', title: 'Student' };
+      const mockGuide = { id: 'FAC-01', name: 'Dr. Guide', role: 'FACULTY', title: 'Faculty Guide' };
+      const mockCoord = { id: 'FAC-02', name: 'Dr. Coordinator', role: 'COORDINATOR', title: 'Coordinator' };
+      const mockHOD = { id: 'FAC-03', name: 'Prof. HOD', role: 'HOD', title: 'HOD' };
+
+      test('6. should initialize cleanly with zero workflows', () => {
         beforeEach();
         const all = engine.getAll();
         assert.ok(Array.isArray(all));
-        assert.ok(all.length >= 4);
-        assert.ok(engine.getById('WF-2026-UG-04') !== null);
+        assert.strictEqual(all.length, 0);
       });
 
-      test('7. should filter workflows accurately by role', () => {
+      test('7. should dynamically create a project proposal with milestones', () => {
         beforeEach();
-        const hodItems = engine.getByRole('HOD', INITIAL_ROLES.HOD);
-        assert.strictEqual(hodItems.length, engine.getAll().length);
-        const facItems = engine.getByRole('FACULTY', INITIAL_ROLES.FACULTY);
-        assert.ok(Array.isArray(facItems));
-        const ugItems = engine.getByRole('UG_STUDENT', INITIAL_ROLES.UG_STUDENT);
-        assert.ok(ugItems.length > 0);
-      });
-
-      test('8. should return valid available actions based on RBAC and state', () => {
-        beforeEach();
-        const wf = engine.getById('WF-2026-UG-04');
-        assert.strictEqual(wf.state, 'UNDER_HOD_REVIEW');
-        const hodActions = engine.getAvailableActions(wf, 'HOD', INITIAL_ROLES.HOD);
-        const hodKeys = hodActions.map(a => a.key);
-        assert.ok(hodKeys.includes('HOD_APPROVE'));
-        assert.ok(hodKeys.includes('REQUEST_REVISION'));
-        assert.ok(hodKeys.includes('REJECT'));
-        const studentActions = engine.getAvailableActions(wf, 'UG_STUDENT', INITIAL_ROLES.UG_STUDENT);
-        assert.strictEqual(studentActions.length, 0);
-      });
-
-      test('9. should transition state on HOD approval and log audit record', () => {
-        beforeEach();
-        const wfId = 'WF-2026-UG-04';
-        const updated = engine.transition(wfId, 'HOD_APPROVE', 'Approved project.', 'HOD', INITIAL_ROLES.HOD);
-        assert.strictEqual(updated.state, 'APPROVED');
-        const latestAudit = updated.history[updated.history.length - 1];
-        assert.strictEqual(latestAudit.action, 'HOD_SANCTIONED');
-      });
-
-      test('10. should handle revision request and student resubmission cycle', () => {
-        beforeEach();
-        const wfId = 'WF-2026-UG-04';
-        const revWf = engine.transition(wfId, 'REQUEST_REVISION', 'Refine section 3.', 'HOD', INITIAL_ROLES.HOD);
-        assert.strictEqual(revWf.state, 'REVISION_REQUESTED');
-        
-        // Student should have STUDENT_RESUBMIT available
-        const studentActions = engine.getAvailableActions(revWf, 'UG_STUDENT', INITIAL_ROLES.UG_STUDENT);
-        assert.ok(studentActions.some(a => a.key === 'STUDENT_RESUBMIT' || a.key === 'RESUBMIT'));
-
-        const resubmittedWf = engine.transition(wfId, 'STUDENT_RESUBMIT', 'Updated section 3.', 'UG_STUDENT', INITIAL_ROLES.UG_STUDENT);
-        assert.strictEqual(resubmittedWf.state, 'UNDER_GUIDE_REVIEW');
-      });
-
-      test('11. should allow creation of new workflow items', () => {
-        beforeEach();
-        const initialCount = engine.getAll().length;
-        const payload = {
-          title: 'Quantum Key Distribution over Free-Space Optical Channels',
+        const newWf = engine.createWorkflow({
+          title: 'Autonomous Robotics with Edge Compute',
           category: 'UG',
           type: 'UG_PROJECT',
-          domain: 'Quantum Computing',
-          abstract: 'Investigating entanglement-based QKD protocol simulation.',
-          proposedGuideId: 'FAC-03',
-          teamMembers: ['Rahul Verma', 'Priya Sharma']
-        };
-        const newWf = engine.createWorkflow(payload, 'UG_STUDENT', INITIAL_ROLES.UG_STUDENT);
+          domain: 'Robotics',
+          proposedGuideId: 'FAC-01',
+          guideName: 'Dr. Guide',
+          abstract: 'Edge perception pipeline.'
+        }, 'UG_STUDENT', mockStudent);
+
         assert.ok(newWf.id.startsWith('WF-2026-UG-'));
         assert.strictEqual(newWf.state, 'UNDER_GUIDE_REVIEW');
-        assert.strictEqual(engine.getAll().length, initialCount + 1);
+        assert.strictEqual(newWf.milestones.length, 3);
+        assert.strictEqual(engine.getAll().length, 1);
       });
 
-      test('12. should evaluate milestone rubrics and calculate total score', () => {
+      test('8. should isolate workflow visibility strictly by authenticated role', () => {
         beforeEach();
-        const wf = engine.getById('WF-2026-UG-04');
-        const rubricScores = { literatureSurvey: 27, rigorAndMath: 36, oralDefense: 28 };
-        const evaluated = engine.evaluateMilestone(wf.id, 'M1', rubricScores, 'Solid literature coverage.', INITIAL_ROLES.FACULTY);
+        const wf = engine.createWorkflow({
+          title: 'Quantum Key Distribution',
+          category: 'UG',
+          type: 'UG_PROJECT',
+          domain: 'Quantum',
+          proposedGuideId: 'FAC-01',
+          guideName: 'Dr. Guide',
+          abstract: 'QKD simulation.'
+        }, 'UG_STUDENT', mockStudent);
+
+        // HOD sees it
+        assert.strictEqual(engine.getByRole('HOD', mockHOD).length, 1);
+        // Appointed Guide sees it
+        assert.strictEqual(engine.getByRole('FACULTY', mockGuide).length, 1);
+        // Submitter sees it
+        assert.strictEqual(engine.getByRole('UG_STUDENT', mockStudent).length, 1);
+        // Another student DOES NOT see it
+        const otherStudent = { id: 'STU-99', name: 'Other', role: 'UG_STUDENT' };
+        assert.strictEqual(engine.getByRole('UG_STUDENT', otherStudent).length, 0);
+      });
+
+      test('9. should transition workflow through 3-tier approvals to APPROVED', () => {
+        beforeEach();
+        const wf = engine.createWorkflow({
+          title: 'Federated Learning for Healthcare',
+          category: 'UG',
+          type: 'UG_PROJECT',
+          domain: 'AI',
+          proposedGuideId: 'FAC-01',
+          guideName: 'Dr. Guide',
+          abstract: 'Healthcare privacy.'
+        }, 'UG_STUDENT', mockStudent);
+
+        // 1. Guide approve
+        const s1 = engine.transition(wf.id, 'GUIDE_APPROVE', 'Endorsed.', 'FACULTY', mockGuide);
+        assert.strictEqual(s1.state, 'UNDER_COORDINATOR_REVIEW');
+
+        // 2. Coordinator forward
+        const s2 = engine.transition(wf.id, 'COORDINATOR_FORWARD', 'Verified.', 'COORDINATOR', mockCoord);
+        assert.strictEqual(s2.state, 'UNDER_HOD_REVIEW');
+
+        // 3. HOD sanction
+        const s3 = engine.transition(wf.id, 'HOD_APPROVE', 'Sanctioned.', 'HOD', mockHOD);
+        assert.strictEqual(s3.state, 'APPROVED');
+        assert.ok(s3.sanctionDate);
+      });
+
+      test('10. should handle revision request and student resubmission cycle without state reversion', () => {
+        beforeEach();
+        const wf = engine.createWorkflow({
+          title: 'Distributed Consensus on Mobile Mesh',
+          category: 'UG',
+          type: 'UG_PROJECT',
+          domain: 'Networking',
+          proposedGuideId: 'FAC-01',
+          guideName: 'Dr. Guide',
+          abstract: 'Mesh consensus.'
+        }, 'UG_STUDENT', mockStudent);
+
+        engine.transition(wf.id, 'GUIDE_APPROVE', 'Endorsed.', 'FACULTY', mockGuide);
+        engine.transition(wf.id, 'COORDINATOR_FORWARD', 'Forwarded.', 'COORDINATOR', mockCoord);
+
+        // HOD requests revision
+        const rev = engine.transition(wf.id, 'REQUEST_REVISION', 'Elaborate on packet drop test.', 'HOD', mockHOD);
+        assert.strictEqual(rev.state, 'REVISION_REQUESTED');
+
+        // Student resubmits
+        const resubmitted = engine.transition(wf.id, 'STUDENT_RESUBMIT', 'Added packet loss simulation benchmarks.', 'UG_STUDENT', mockStudent);
+        assert.strictEqual(resubmitted.state, 'UNDER_GUIDE_REVIEW');
+      });
+
+      test('11. should evaluate continuous assessment rubrics with ABET 3-part criteria and calculate grade', () => {
+        beforeEach();
+        const wf = engine.createWorkflow({
+          title: 'Secure Enclaves on RISC-V',
+          category: 'UG',
+          type: 'UG_PROJECT',
+          domain: 'Hardware Security',
+          proposedGuideId: 'FAC-01',
+          guideName: 'Dr. Guide',
+          abstract: 'TEE implementation.'
+        }, 'UG_STUDENT', mockStudent);
+
+        const rubric = { literatureSurvey: 28, rigorAndMath: 38, oralDefense: 28 };
+        const evaluated = engine.evaluateMilestone(wf.id, 'M1', rubric, 'Excellent hardware benchmarks.', mockGuide);
+
         assert.strictEqual(evaluated.status, 'EVALUATED');
-        assert.strictEqual(evaluated.score, 91);
-      });
-
-      test('13. should generate notifications and support mark-as-read', () => {
-        beforeEach();
-        const notifs = engine.getNotifications('HOD');
-        assert.ok(notifs.length > 0);
-        engine.markAllNotificationsRead();
-        const updated = engine.getNotifications('HOD');
-        updated.forEach(n => assert.strictEqual(n.read, true));
-      });
-
-      test('14. should ensure WF-2026-NOC-12 is supervised and reviewable by Guide Dr. Vikramaditya Das', () => {
-        beforeEach();
-        const nocWf = engine.getById('WF-2026-NOC-12');
-        assert.ok(nocWf, 'NOC-12 should exist');
-        assert.strictEqual(nocWf.state, 'UNDER_GUIDE_REVIEW');
-        assert.strictEqual(nocWf.details.proposedGuideId, 'FAC-03');
-        assert.strictEqual(nocWf.details.allocatedGuideId, 'FAC-03');
-
-        // Check Guide available actions
-        const guideActions = engine.getAvailableActions(nocWf, 'FACULTY', INITIAL_ROLES.FACULTY);
-        const actionKeys = guideActions.map(a => a.key);
-        assert.ok(actionKeys.includes('GUIDE_ENDORSE'), 'Guide should have GUIDE_ENDORSE');
-        assert.ok(actionKeys.includes('REQUEST_REVISION'), 'Guide should have REQUEST_REVISION');
-        assert.ok(actionKeys.includes('REJECT'), 'Guide should have REJECT');
-
-        // Guide endorses NOC
-        const endorsedWf = engine.transition('WF-2026-NOC-12', 'GUIDE_ENDORSE', 'Endorsed internship research alignment.', 'FACULTY', INITIAL_ROLES.FACULTY);
-        assert.strictEqual(endorsedWf.state, 'UNDER_COORDINATOR_REVIEW');
+        assert.strictEqual(evaluated.score, 94);
+        assert.strictEqual(evaluated.grade, 'O');
       });
     });
 
