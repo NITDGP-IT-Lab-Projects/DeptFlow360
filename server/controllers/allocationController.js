@@ -21,19 +21,29 @@ exports.createTeam = async (req, res) => {
     }
     const tId = teamId || `${type || 'UG'}-TEAM-${Date.now().toString().slice(-4)}`;
 
-    const existing = await ProjectTeam.findOne({ teamId: tId });
+    let existing = await ProjectTeam.findOne({ teamId: tId });
     if (existing) {
-      return res.status(400).json({ success: false, error: 'Team with this ID already exists.' });
+      existing.leadName = leadName.trim();
+      existing.title = title.trim();
+      existing.type = type || existing.type;
+      if (avgCgpa !== undefined) existing.avgCgpa = Number(avgCgpa);
+      if (domain) existing.domain = domain;
+      if (members) existing.members = Array.isArray(members) ? members : members.split(',').map(m => m.trim());
+      if (preferences) existing.preferences = Array.isArray(preferences) ? preferences : [];
+      if (allocatedGuideId !== undefined) existing.allocatedGuideId = allocatedGuideId;
+      if (status) existing.status = status;
+      await existing.save();
+      return res.status(200).json({ success: true, data: existing, updated: true });
     }
 
     const team = new ProjectTeam({
       teamId: tId,
       type: type || 'UG',
-      leadName,
-      members: Array.isArray(members) ? members : (members ? members.split(',').map(m => m.trim()) : [leadName]),
+      leadName: leadName.trim(),
+      members: Array.isArray(members) ? members : (members ? members.split(',').map(m => m.trim()) : [leadName.trim()]),
       avgCgpa: Number(avgCgpa) || 8.0,
       domain: domain || 'Software Engineering & AI',
-      title,
+      title: title.trim(),
       preferences: Array.isArray(preferences) ? preferences : [],
       allocatedGuideId: allocatedGuideId || null,
       status: status || 'UNALLOCATED'

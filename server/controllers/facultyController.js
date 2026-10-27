@@ -18,19 +18,33 @@ exports.createFaculty = async (req, res) => {
     if (!name || !email) {
       return res.status(400).json({ success: false, error: 'Name and email are required.' });
     }
+    const normalizedEmail = email.toLowerCase().trim();
     const facultyId = id || `FAC-${Date.now().toString().slice(-4)}`;
     
-    const existing = await Faculty.findOne({ $or: [{ id: facultyId }, { email: email.toLowerCase() }] });
+    let existing = await Faculty.findOne({ $or: [{ id: facultyId }, { email: normalizedEmail }] });
     if (existing) {
-      return res.status(400).json({ success: false, error: 'Faculty with this ID or email already exists.' });
+      // Update existing faculty member's profile and quotas
+      if (name) existing.name = name.trim();
+      if (role) existing.role = role;
+      if (designation) existing.designation = designation;
+      if (ugQuotaMax !== undefined) existing.ugQuotaMax = Number(ugQuotaMax);
+      if (pgQuotaMax !== undefined) existing.pgQuotaMax = Number(pgQuotaMax);
+      if (specializations) {
+        existing.specializations = Array.isArray(specializations) ? specializations : specializations.split(',').map(s => s.trim());
+      }
+      if (room) existing.room = room;
+      if (avatar) existing.avatar = avatar;
+      if (id && existing.id !== id) existing.id = id;
+      await existing.save();
+      return res.status(200).json({ success: true, data: existing, updated: true });
     }
 
     const faculty = new Faculty({
       id: facultyId,
-      name,
+      name: name.trim(),
       role: role || 'FACULTY',
       designation: designation || 'Assistant Professor',
-      email: email.toLowerCase(),
+      email: normalizedEmail,
       specializations: Array.isArray(specializations) ? specializations : (specializations ? specializations.split(',').map(s => s.trim()) : ['Information Technology']),
       ugQuotaMax: Number(ugQuotaMax) || 3,
       ugQuotaCurrent: 0,

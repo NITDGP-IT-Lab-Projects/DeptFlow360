@@ -173,8 +173,9 @@ jobs:
           FAC_RES=$(curl -s -X POST http://localhost:8080/api/faculty \
             -H "Content-Type: application/json" \
             -d '{"id":"FAC-SG","name":"Dr. Subhankar Ghosh","email":"s.ghosh@nitdgp.ac.in","role":"FACULTY","designation":"Associate Professor","ugQuotaMax":3,"pgQuotaMax":2,"specializations":["Computer Networks","IoT"]}')
+          echo "Response: $FAC_RES"
           echo "$FAC_RES" | grep -q '"success":true'
-          echo "Faculty supervisor provisioned."
+          echo "Faculty supervisor provisioned successfully."
 
           echo "============================================================================"
           echo "5. Dynamically register capstone project team..."
@@ -182,13 +183,15 @@ jobs:
           TEAM_RES=$(curl -s -X POST http://localhost:8080/api/allocation/teams \
             -H "Content-Type: application/json" \
             -d '{"teamId":"UG-2026-T01","title":"LoRaWAN Sensor Mesh for Smart Agriculture","leadName":"Aritra Sen","avgCgpa":8.95,"domain":"IoT & Edge Computing","type":"UG","preferences":["FAC-SG"]}')
+          echo "Response: $TEAM_RES"
           echo "$TEAM_RES" | grep -q '"success":true'
-          echo "Project team registered."
+          echo "Project team registered successfully."
 
           echo "============================================================================"
           echo "6. Run Gale-Shapley matching simulation..."
           echo "============================================================================"
           MATCH_RES=$(curl -s -X POST http://localhost:8080/api/allocation/match)
+          echo "Response: $MATCH_RES"
           echo "$MATCH_RES" | grep -q '"success":true'
           echo "Gale-Shapley matching executed successfully."
 
@@ -198,6 +201,7 @@ jobs:
           WF_SUBMIT=$(curl -s -X POST http://localhost:8080/api/workflows \
             -H "Content-Type: application/json" \
             -d '{"title":"LoRaWAN Sensor Mesh for Smart Agriculture","category":"UG","type":"UG_PROJECT","domain":"IoT & Edge Computing","abstract":"Dynamic deployment of low-power sensor nodes.","proposedGuideId":"FAC-SG","actorRole":"UG_STUDENT","actorData":{"id":"STU-01","name":"Aritra Sen","title":"UG Student"}}')
+          echo "Response: $WF_SUBMIT"
           echo "$WF_SUBMIT" | grep -q '"success":true'
           WF_ID=$(echo "$WF_SUBMIT" | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
           echo "Dynamic proposal created with ID: $WF_ID"
@@ -209,6 +213,7 @@ jobs:
           S1=$(curl -s -X POST "http://localhost:8080/api/workflows/$WF_ID/transition" \
             -H "Content-Type: application/json" \
             -d '{"actionKey":"GUIDE_ENDORSE","comment":"Endorsed with strong IoT merit.","actorRole":"FACULTY","actorName":"Dr. Subhankar Ghosh","actorId":"FAC-SG"}')
+          echo "Stage 1 Response: $S1"
           echo "$S1" | grep -q "UNDER_COORDINATOR_REVIEW"
           echo "Stage 1: Guide endorsed -> UNDER_COORDINATOR_REVIEW"
 
@@ -216,6 +221,7 @@ jobs:
           S2=$(curl -s -X POST "http://localhost:8080/api/workflows/$WF_ID/transition" \
             -H "Content-Type: application/json" \
             -d '{"actionKey":"COORDINATOR_VERIFY","comment":"Verified quota and hardware resources.","actorRole":"COORDINATOR","actorName":"Dr. Tanmay Roy","actorId":"COORD-01"}')
+          echo "Stage 2 Response: $S2"
           echo "$S2" | grep -q "UNDER_HOD_REVIEW"
           echo "Stage 2: Coordinator verified -> UNDER_HOD_REVIEW"
 
@@ -223,6 +229,7 @@ jobs:
           S3=$(curl -s -X POST "http://localhost:8080/api/workflows/$WF_ID/transition" \
             -H "Content-Type: application/json" \
             -d '{"actionKey":"REQUEST_REVISION","comment":"Please elaborate on solar power budget analysis.","actorRole":"HOD","actorName":"Prof. Nirmal Kumar","actorId":"HOD-01"}')
+          echo "Stage 3 Response: $S3"
           echo "$S3" | grep -q "REVISION_REQUESTED"
           echo "Stage 3: HOD requested revision -> REVISION_REQUESTED"
 
@@ -230,6 +237,7 @@ jobs:
           S4=$(curl -s -X POST "http://localhost:8080/api/workflows/$WF_ID/transition" \
             -H "Content-Type: application/json" \
             -d '{"actionKey":"STUDENT_RESUBMIT","comment":"Added Section 4 with comprehensive solar irradiance calculation.","actorRole":"UG_STUDENT","actorName":"Aritra Sen","actorId":"STU-01"}')
+          echo "Stage 4 Response: $S4"
           echo "$S4" | grep -q "UNDER_GUIDE_REVIEW"
           echo "$S4" | grep -q "REVISION_SUBMITTED"
           echo "Stage 4: Student resubmitted -> UNDER_GUIDE_REVIEW (action REVISION_SUBMITTED recorded)"
@@ -238,20 +246,23 @@ jobs:
           S5=$(curl -s -X POST "http://localhost:8080/api/workflows/$WF_ID/transition" \
             -H "Content-Type: application/json" \
             -d '{"actionKey":"GUIDE_ENDORSE","comment":"Revisions verified and satisfactory.","actorRole":"FACULTY","actorName":"Dr. Subhankar Ghosh","actorId":"FAC-SG"}')
+          echo "Stage 5 Response: $S5"
           echo "$S5" | grep -q "UNDER_COORDINATOR_REVIEW"
 
           # 8f. Coordinator Re-forwards
           S6=$(curl -s -X POST "http://localhost:8080/api/workflows/$WF_ID/transition" \
             -H "Content-Type: application/json" \
             -d '{"actionKey":"COORDINATOR_VERIFY","comment":"Forwarded to HOD for sanction.","actorRole":"COORDINATOR","actorName":"Dr. Tanmay Roy","actorId":"COORD-01"}')
+          echo "Stage 6 Response: $S6"
           echo "$S6" | grep -q "UNDER_HOD_REVIEW"
 
           # 8g. HOD Grants Final Sanction
           S7=$(curl -s -X POST "http://localhost:8080/api/workflows/$WF_ID/transition" \
             -H "Content-Type: application/json" \
             -d '{"actionKey":"HOD_APPROVE","comment":"Approved and officially sanctioned for implementation.","actorRole":"HOD","actorName":"Prof. Nirmal Kumar","actorId":"HOD-01"}')
+          echo "Stage 7 Response: $S7"
           echo "$S7" | grep -q "APPROVED"
-          echo "Stage 5: Final Sanction Granted -> APPROVED"
+          echo "Stage 7: Final Sanction Granted -> APPROVED"
 
           echo "============================================================================"
           echo "9. Continuous Assessment: Milestone Rubric Evaluation..."
@@ -259,6 +270,7 @@ jobs:
           RUBRIC_RES=$(curl -s -X POST "http://localhost:8080/api/workflows/$WF_ID/milestones/M1/evaluate" \
             -H "Content-Type: application/json" \
             -d '{"rubricScores":{"literatureSurvey":28,"rigorAndMath":36,"presentation":27},"feedback":"Outstanding literature survey with clear methodology.","evaluatorData":{"id":"FAC-SG","name":"Dr. Subhankar Ghosh"}}')
+          echo "Rubric Response: $RUBRIC_RES"
           echo "$RUBRIC_RES" | grep -q '"success":true'
           echo "Milestone 1 evaluated with 3-part rubric scoring."
 
