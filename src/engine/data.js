@@ -88,9 +88,12 @@ export const RUBRIC_CRITERIA = [
   }
 ];
 
+export const EVALUATION_RUBRICS = RUBRIC_CRITERIA;
+
 export const getInitialFaculty = () => [];
 export const getInitialTeams = () => [];
 export const getInitialWorkflows = () => [];
+export const getInitialNotifications = () => [];
 
 export class DeptStore {
   static PREFIX = "DAWMS_DEPT_PORTAL_";

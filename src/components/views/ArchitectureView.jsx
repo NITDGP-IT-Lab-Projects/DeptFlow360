@@ -22,8 +22,8 @@ export const ArchitectureView = () => {
         </p>
 
         <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 'var(--radius-md)', padding: '1.25rem', fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: '#38bdf8', lineHeight: 1.7, boxShadow: 'var(--shadow-sm)' }}>
-          [DRAFT] --(Student Submit)--> [UNDER_GUIDE_REVIEW]<br />
-          &nbsp;&nbsp;├── [GUIDE_ENDORSE] --(Quota Guard OK)--> [UNDER_COORDINATOR_REVIEW]<br />
+          [DRAFT] --(Student Submit)--&gt; [UNDER_GUIDE_REVIEW]<br />
+          &nbsp;&nbsp;├── [GUIDE_ENDORSE] --(Quota Guard OK)--&gt; [UNDER_COORDINATOR_REVIEW]<br />
           &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;└── [COORDINATOR_VERIFY] --------&gt; [UNDER_HOD_REVIEW]<br />
           &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── [HOD_APPROVE] ---------&gt; [APPROVED / SANCTIONED]<br />
           &nbsp;&nbsp;├── [REQUEST_REVISION] -------------------------&gt; [REVISION_REQUESTED] (Student Resubmits)<br />

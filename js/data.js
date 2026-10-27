@@ -94,6 +94,7 @@ const RUBRIC_CRITERIA = EVALUATION_RUBRICS;
 const getInitialFaculty = () => [];
 const getInitialTeams = () => [];
 const getInitialWorkflows = () => [];
+const getInitialNotifications = () => [];
 
 class DeptStore {
   static PREFIX = "DAWMS_DEPT_PORTAL_";
