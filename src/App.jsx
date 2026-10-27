@@ -19,6 +19,8 @@ import { RubricScoringModal } from './components/modals/RubricScoringModal.jsx';
 import { ManualOverrideModal } from './components/modals/ManualOverrideModal.jsx';
 import { SanctionLetterModal } from './components/modals/SanctionLetterModal.jsx';
 import { AuthModal } from './components/modals/AuthModal.jsx';
+import { AddFacultyModal } from './components/modals/AddFacultyModal.jsx';
+import { AddTeamModal } from './components/modals/AddTeamModal.jsx';
 
 export const App = () => {
   const { currentUser, activeView, activeModal } = useApp();
@@ -71,6 +73,12 @@ export const App = () => {
       )}
       {activeModal?.type === 'SANCTION' && (
         <SanctionLetterModal workflow={activeModal.data} />
+      )}
+      {activeModal?.type === 'ADD_FACULTY' && (
+        <AddFacultyModal />
+      )}
+      {activeModal?.type === 'ADD_TEAM' && (
+        <AddTeamModal />
       )}
 
       {/* User Authentication Modal (For in-app account switching) */}

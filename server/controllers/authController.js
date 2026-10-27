@@ -1,86 +1,14 @@
 const mongoose = require('mongoose');
 const User = require('../models/User');
+const Faculty = require('../models/Faculty');
 const { hashPassword, comparePassword, generateToken } = require('../utils/auth');
 
 // Resilient in-memory user store for degraded mode or when MongoDB connection is pending
 const inMemoryUsers = new Map();
 
-// Helper to seed in-memory users on module load
+// Helper to seed in-memory users on module load (zero sample data baseline)
 const initDefaultUsers = async () => {
-  const defaultAccounts = [
-    {
-      id: 'USR-HOD-01',
-      name: 'Dr. Rajeshwar Sen',
-      email: 'hod.it@university.edu',
-      passwordPlain: 'Admin@123',
-      role: 'HOD',
-      designation: 'Professor & Head of Department',
-      department: 'Information Technology',
-      referenceId: 'FAC-01',
-      avatar: '👨‍💼'
-    },
-    {
-      id: 'USR-COORD-02',
-      name: 'Dr. Ananya Roy',
-      email: 'ananya.roy@university.edu',
-      passwordPlain: 'Coord@123',
-      role: 'COORDINATOR',
-      designation: 'Associate Professor & Project Convener',
-      department: 'Information Technology',
-      referenceId: 'FAC-02',
-      avatar: '👩‍🏫'
-    },
-    {
-      id: 'USR-FAC-03',
-      name: 'Dr. Vikramaditya Das',
-      email: 'vikram.das@university.edu',
-      passwordPlain: 'Guide@123',
-      role: 'FACULTY',
-      designation: 'Associate Professor',
-      department: 'Information Technology',
-      referenceId: 'FAC-03',
-      avatar: '👨‍🏫'
-    },
-    {
-      id: 'USR-PG-01',
-      name: 'Sneha Mukherjee',
-      email: 'sneha.m@university.edu',
-      passwordPlain: 'Student@123',
-      role: 'PG_STUDENT',
-      designation: 'PG Scholar (M.Tech 2nd Year)',
-      department: 'Information Technology',
-      referenceId: 'PG-2025-01',
-      avatar: '👩‍💻'
-    },
-    {
-      id: 'USR-UG-04',
-      name: 'Rahul Verma (Team 04 Lead)',
-      email: 'team04.lead@university.edu',
-      passwordPlain: 'Student@123',
-      role: 'UG_STUDENT',
-      designation: 'B.Tech Capstone Lead (Team 04)',
-      department: 'Information Technology',
-      referenceId: 'UG-2024-04',
-      avatar: '👨‍🎓'
-    }
-  ];
-
-  for (const acc of defaultAccounts) {
-    const hashedPassword = await hashPassword(acc.passwordPlain);
-    inMemoryUsers.set(acc.email.toLowerCase(), {
-      _id: acc.id,
-      name: acc.name,
-      email: acc.email.toLowerCase(),
-      password: hashedPassword,
-      role: acc.role,
-      designation: acc.designation,
-      department: acc.department,
-      referenceId: acc.referenceId,
-      avatar: acc.avatar,
-      createdAt: new Date(),
-      lastLogin: null
-    });
-  }
+  // Empty baseline: No pre-seeded users. Accounts are dynamically created via UI signup.
 };
 
 initDefaultUsers().catch(err => console.error('Failed to initialize default in-memory users:', err));
@@ -137,6 +65,30 @@ const signup = async (req, res) => {
         designation: designation || (validatedRole.includes('STUDENT') ? 'Student Scholar' : 'Faculty Member'),
         department: department || 'Information Technology'
       });
+
+      // If registered as faculty, coordinator, or HOD, automatically provision supervisory record
+      if (['HOD', 'COORDINATOR', 'FACULTY'].includes(validatedRole)) {
+        await Faculty.findOneAndUpdate(
+          { email: normalizedEmail },
+          {
+            $setOnInsert: {
+              id: `FAC-${Date.now().toString(36).toUpperCase()}`,
+              name: name.trim(),
+              email: normalizedEmail,
+              designation: designation || (validatedRole === 'HOD' ? 'Head of Department' : 'Faculty Supervisor'),
+              department: department || 'Information Technology',
+              role: validatedRole,
+              ugQuotaMax: 3,
+              pgQuotaMax: 2,
+              ugQuotaCurrent: 0,
+              pgQuotaCurrent: 0,
+              specializations: ['General IT', 'Software Engineering'],
+              room: 'Faculty Chambers'
+            }
+          },
+          { upsert: true, new: true }
+        );
+      }
 
       // Synchronize in-memory mirror
       inMemoryUsers.set(normalizedEmail, {

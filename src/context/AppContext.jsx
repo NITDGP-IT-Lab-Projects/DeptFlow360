@@ -13,48 +13,24 @@ const clientHashPassword = async (password) => {
   return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
 };
 
-const DEFAULT_AUTH_USERS = [
-  {
-    id: 'FAC-01',
-    name: 'Dr. Rajeshwar Sen',
-    email: 'hod.it@university.edu',
-    plainPass: 'Admin@123',
-    role: 'HOD',
-    designation: 'Professor & Head of Department'
-  },
-  {
-    id: 'FAC-02',
-    name: 'Dr. Ananya Roy',
-    email: 'ananya.roy@university.edu',
-    plainPass: 'Coord@123',
-    role: 'COORDINATOR',
-    designation: 'Associate Professor & Project Convener'
-  },
-  {
-    id: 'FAC-03',
-    name: 'Dr. Vikramaditya Das',
-    email: 'vikram.das@university.edu',
-    plainPass: 'Guide@123',
-    role: 'FACULTY',
-    designation: 'Associate Professor'
-  },
-  {
-    id: 'PG-2025-09',
-    name: 'Sneha Mukherjee',
-    email: 'sneha.m@university.edu',
-    plainPass: 'Student@123',
-    role: 'PG_STUDENT',
-    designation: 'PG Scholar (M.Tech 2nd Year)'
-  },
-  {
-    id: 'UG-2023-TEAM-04',
-    name: 'Rahul Verma (Team 04 Lead)',
-    email: 'team04.lead@university.edu',
-    plainPass: 'Student@123',
-    role: 'UG_STUDENT',
-    designation: 'B.Tech Capstone Lead (Team 04)'
+// Purge stale mock cache from previous sessions once
+try {
+  const CLEAN_VERSION = 'deptflow_clean_v4';
+  if (localStorage.getItem('deptflow_clean_stamp') !== CLEAN_VERSION) {
+    localStorage.removeItem('DAWMS_DEPT_PORTAL_WORKFLOWS');
+    localStorage.removeItem('DAWMS_DEPT_PORTAL_FACULTY');
+    localStorage.removeItem('DAWMS_DEPT_PORTAL_PROJECT_TEAMS');
+    localStorage.removeItem('DAWMS_DEPT_PORTAL_NOTIFICATIONS');
+    localStorage.removeItem('DAWMS_DEPT_PORTAL_REGISTERED_USERS');
+    localStorage.removeItem('deptflow_user');
+    localStorage.removeItem('deptflow_auth_token');
+    localStorage.setItem('deptflow_clean_stamp', CLEAN_VERSION);
   }
-];
+} catch (e) {
+  console.warn('Storage purge error:', e);
+}
+
+const DEFAULT_AUTH_USERS = [];
 
 export const AppProvider = ({ children }) => {
   // Engines initialized with persistent DeptStore
@@ -134,7 +110,7 @@ export const AppProvider = ({ children }) => {
         // Fetch Workflows from MongoDB Atlas
         try {
           const wfRes = await api.getWorkflows();
-          if (wfRes && wfRes.success && Array.isArray(wfRes.data) && wfRes.data.length > 0) {
+          if (wfRes && wfRes.success && Array.isArray(wfRes.data)) {
             setWorkflows(wfRes.data);
             DeptStore.save("WORKFLOWS", wfRes.data);
           }
@@ -145,7 +121,7 @@ export const AppProvider = ({ children }) => {
         // Fetch Teams from MongoDB Atlas
         try {
           const teamsRes = await api.getTeams();
-          if (teamsRes && teamsRes.success && Array.isArray(teamsRes.data) && teamsRes.data.length > 0) {
+          if (teamsRes && teamsRes.success && Array.isArray(teamsRes.data)) {
             setTeamsList(teamsRes.data);
             DeptStore.save("PROJECT_TEAMS", teamsRes.data);
           }
@@ -156,7 +132,7 @@ export const AppProvider = ({ children }) => {
         // Fetch Faculty from MongoDB Atlas
         try {
           const facRes = await api.getFaculty();
-          if (facRes && facRes.success && Array.isArray(facRes.data) && facRes.data.length > 0) {
+          if (facRes && facRes.success && Array.isArray(facRes.data)) {
             setFacultyList(facRes.data);
             DeptStore.save("FACULTY", facRes.data);
           }
@@ -198,7 +174,7 @@ export const AppProvider = ({ children }) => {
     }
 
     // 2. Resilient Local Cryptographic Fallback (Matches default accounts or locally registered users)
-    const localRegistered = DeptStore.get("REGISTERED_USERS") || [];
+    const localRegistered = DeptStore.load("REGISTERED_USERS", []);
     const allUsers = [...DEFAULT_AUTH_USERS, ...localRegistered];
     const candidate = allUsers.find(u => u.email.toLowerCase() === normalizedEmail);
 
@@ -266,6 +242,19 @@ export const AppProvider = ({ children }) => {
         setCurrentRoleKey(res.user.role);
         setAuthModalOpen(false);
         addToast('success', 'Account Registered', `Welcome to DeptFlow 360, ${res.user.name}!`);
+
+        if (['HOD', 'COORDINATOR', 'FACULTY'].includes(res.user.role)) {
+          allocationEngine.addFaculty({
+            id: res.user.id,
+            name: res.user.name,
+            email: res.user.email,
+            role: res.user.role,
+            designation: res.user.designation,
+            ugQuotaMax: 3,
+            pgQuotaMax: 2
+          });
+          setFacultyList([...allocationEngine.getFacultyList()]);
+        }
         return res.user;
       }
     } catch (apiErr) {
@@ -273,7 +262,7 @@ export const AppProvider = ({ children }) => {
     }
 
     // 2. Local Fallback Registration with SHA-256 Hashing
-    const localRegistered = DeptStore.get("REGISTERED_USERS") || [];
+    const localRegistered = DeptStore.load("REGISTERED_USERS", []);
     const exists = [...DEFAULT_AUTH_USERS, ...localRegistered].some(u => u.email.toLowerCase() === normalizedEmail);
 
     if (exists) {
@@ -303,13 +292,26 @@ export const AppProvider = ({ children }) => {
       designation: newLocalUser.designation
     };
 
+    if (['HOD', 'COORDINATOR', 'FACULTY'].includes(userObj.role)) {
+      allocationEngine.addFaculty({
+        id: userObj.id,
+        name: userObj.name,
+        email: userObj.email,
+        role: userObj.role,
+        designation: userObj.designation,
+        ugQuotaMax: 3,
+        pgQuotaMax: 2
+      });
+      setFacultyList([...allocationEngine.getFacultyList()]);
+    }
+
     setCurrentUser(userObj);
     localStorage.setItem('deptflow_user', JSON.stringify(userObj));
     setCurrentRoleKey(userObj.role);
     setAuthModalOpen(false);
     addToast('success', 'Account Registered', `New account created for ${userObj.name} (${userObj.role}).`);
     return userObj;
-  }, [addToast]);
+  }, [allocationEngine, addToast]);
 
   const handleSignOut = useCallback(() => {
     api.signOut();
@@ -359,6 +361,32 @@ export const AppProvider = ({ children }) => {
       setWorkflows([...workflowEngine.getAll()]);
       setNotifications([...workflowEngine.notifications]);
 
+      if (['UG_PROJECT_PROPOSAL', 'PG_THESIS_PROPOSAL'].includes(payload.type)) {
+        const isUg = payload.type === 'UG_PROJECT_PROPOSAL';
+        const teamObj = {
+          teamId: `${isUg ? 'UG' : 'PG'}-TEAM-${newWf.id.split('-').pop()}`,
+          type: isUg ? 'UG' : 'PG',
+          leadName: payload.submittedBy?.name || currentRoleData.name,
+          members: payload.teamMembers || [currentRoleData.name],
+          avgCgpa: Number(payload.avgCgpa) || 8.5,
+          domain: payload.domain || payload.title,
+          title: payload.title,
+          preferences: payload.preferences || (payload.proposedGuideId ? [payload.proposedGuideId] : []),
+          allocatedGuideId: payload.proposedGuideId || null,
+          status: payload.proposedGuideId ? 'ALLOCATED' : 'UNALLOCATED',
+          workflowId: newWf.id
+        };
+        allocationEngine.addTeam(teamObj);
+        setTeamsList([...allocationEngine.getTeams()]);
+        if (backendOnline) {
+          try {
+            await api.createTeam(teamObj);
+          } catch (e) {
+            console.warn("Express backend create team sync error:", e);
+          }
+        }
+      }
+
       // Sync with Express backend
       try {
         await api.createWorkflow({
@@ -383,7 +411,50 @@ export const AppProvider = ({ children }) => {
       addToast("danger", "Submission Error", err.message);
       throw err;
     }
-  }, [workflowEngine, currentRoleKey, currentRoleData, currentUser, backendOnline, addToast]);
+  }, [workflowEngine, allocationEngine, currentRoleKey, currentRoleData, currentUser, backendOnline, addToast]);
+
+  const handleAddFaculty = useCallback(async (facultyData) => {
+    try {
+      const newFac = allocationEngine.addFaculty(facultyData);
+      setFacultyList([...allocationEngine.getFacultyList()]);
+
+      if (backendOnline) {
+        try {
+          await api.createFaculty(facultyData);
+        } catch (err) {
+          console.warn("Backend create faculty sync error:", err);
+        }
+      }
+
+      addToast("success", "Faculty Added", `${newFac.name} (${newFac.role}) successfully added to directory.`);
+      return newFac;
+    } catch (err) {
+      addToast("danger", "Failed to Add Faculty", err.message);
+      throw err;
+    }
+  }, [allocationEngine, backendOnline, addToast]);
+
+  const handleAddTeam = useCallback(async (teamData) => {
+    try {
+      const newTeam = allocationEngine.addTeam(teamData);
+      setTeamsList([...allocationEngine.getTeams()]);
+      setFacultyList([...allocationEngine.getFacultyList()]);
+
+      if (backendOnline) {
+        try {
+          await api.createTeam(teamData);
+        } catch (err) {
+          console.warn("Backend create team sync error:", err);
+        }
+      }
+
+      addToast("success", "Team Registered", `Team ${newTeam.teamId} registered for project allocation.`);
+      return newTeam;
+    } catch (err) {
+      addToast("danger", "Failed to Register Team", err.message);
+      throw err;
+    }
+  }, [allocationEngine, backendOnline, addToast]);
 
   const handleEvaluateMilestone = useCallback(async (workflowId, milestoneId, rubricScores, feedback) => {
     try {
@@ -571,6 +642,8 @@ export const AppProvider = ({ children }) => {
     handleCreateWorkflow,
     handleEvaluateMilestone,
     handleScoreMilestone: handleEvaluateMilestone,
+    handleAddFaculty,
+    handleAddTeam,
     handleRunAllocation,
     handleManualOverride,
     handleResetAllocations,

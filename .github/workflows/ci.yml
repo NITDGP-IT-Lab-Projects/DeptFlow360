@@ -94,6 +94,38 @@ jobs:
           echo "$HEADERS" | grep -iq "X-Frame-Options: SAMEORIGIN"
           echo "$HEADERS" | grep -iq "X-Content-Type-Options: nosniff"
           echo "Nginx security headers confirmed."
+      - name: Validate Zero-Sample-Data Baseline & Live Dynamic Data Onboarding
+        run: |
+          echo "1. Verify initial clean slate (zero mock data in database)..."
+          WF_RES=$(curl -s http://localhost:8080/api/workflows)
+          echo "$WF_RES" | grep -q '"success":true'
+          echo "Live workflow endpoint responding cleanly."
+
+          echo "2. Dynamically register a new institutional user via API..."
+          SIGNUP_RES=$(curl -s -X POST http://localhost:8080/api/auth/signup \
+            -H "Content-Type: application/json" \
+            -d '{"name":"Prof. CI Admin","email":"ci.admin@university.edu","password":"Password@123","role":"HOD","designation":"Professor & HOD"}')
+          echo "$SIGNUP_RES" | grep -q "token"
+          echo "User signup verified successfully."
+
+          echo "3. Dynamically add a new faculty member..."
+          FAC_RES=$(curl -s -X POST http://localhost:8080/api/faculty \
+            -H "Content-Type: application/json" \
+            -d '{"name":"Dr. Dynamic Guide","email":"dyn.guide@university.edu","role":"FACULTY","designation":"Associate Professor","ugQuotaMax":3,"pgQuotaMax":2}')
+          echo "$FAC_RES" | grep -q '"success":true'
+          echo "Faculty creation verified."
+
+          echo "4. Dynamically register a new capstone project team..."
+          TEAM_RES=$(curl -s -X POST http://localhost:8080/api/allocation/teams \
+            -H "Content-Type: application/json" \
+            -d '{"title":"Edge AI for Satellites","leadName":"Sat Lead","avgCgpa":9.2,"domain":"Edge AI","type":"UG"}')
+          echo "$TEAM_RES" | grep -q '"success":true'
+          echo "Team creation verified."
+
+          echo "5. Dynamically run Gale-Shapley matching engine..."
+          MATCH_RES=$(curl -s -X POST http://localhost:8080/api/allocation/match)
+          echo "$MATCH_RES" | grep -q '"success":true'
+          echo "Live matching simulation verified."
 
       - name: Inspect Container Logs & Teardown
         if: always()

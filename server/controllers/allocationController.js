@@ -12,6 +12,40 @@ exports.getTeams = async (req, res) => {
   }
 };
 
+// POST /api/allocation/teams - Register a new project team
+exports.createTeam = async (req, res) => {
+  try {
+    const { teamId, type, leadName, members, avgCgpa, domain, title, preferences, allocatedGuideId, status } = req.body;
+    if (!leadName || !title) {
+      return res.status(400).json({ success: false, error: 'Lead name and project title are required.' });
+    }
+    const tId = teamId || `${type || 'UG'}-TEAM-${Date.now().toString().slice(-4)}`;
+
+    const existing = await ProjectTeam.findOne({ teamId: tId });
+    if (existing) {
+      return res.status(400).json({ success: false, error: 'Team with this ID already exists.' });
+    }
+
+    const team = new ProjectTeam({
+      teamId: tId,
+      type: type || 'UG',
+      leadName,
+      members: Array.isArray(members) ? members : (members ? members.split(',').map(m => m.trim()) : [leadName]),
+      avgCgpa: Number(avgCgpa) || 8.0,
+      domain: domain || 'Software Engineering & AI',
+      title,
+      preferences: Array.isArray(preferences) ? preferences : [],
+      allocatedGuideId: allocatedGuideId || null,
+      status: status || 'UNALLOCATED'
+    });
+
+    await team.save();
+    res.status(201).json({ success: true, data: team });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 // GET /api/allocation/quotas
 exports.getQuotas = async (req, res) => {
   try {

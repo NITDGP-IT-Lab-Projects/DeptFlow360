@@ -3,6 +3,7 @@ const router = express.Router();
 const facultyController = require('../controllers/facultyController');
 
 router.get('/', facultyController.getFaculty);
+router.post('/', facultyController.createFaculty);
 router.get('/notifications', facultyController.getNotifications);
 router.post('/notifications/mark-read', facultyController.markNotificationsRead);
 

@@ -213,6 +213,13 @@ export const api = {
     return await apiRequest('/allocation/teams');
   },
 
+  async createTeam(teamData) {
+    return await apiRequest('/allocation/teams', {
+      method: 'POST',
+      body: JSON.stringify(teamData)
+    });
+  },
+
   async simulateAllocation() {
     return await apiRequest('/allocation/simulate', {
       method: 'POST'
@@ -235,5 +242,12 @@ export const api = {
   // --- Faculty Directory ---
   async getFaculty() {
     return await apiRequest('/faculty');
+  },
+
+  async createFaculty(facultyData) {
+    return await apiRequest('/faculty', {
+      method: 'POST',
+      body: JSON.stringify(facultyData)
+    });
   }
 };

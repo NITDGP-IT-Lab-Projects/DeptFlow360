@@ -7,7 +7,7 @@ import {
 } from '../icons/Icons.jsx';
 
 export const FacultyDirView = () => {
-  const { facultyList, teamsList, currentRoleKey, setActiveView } = useApp();
+  const { facultyList, teamsList, currentRoleKey, setActiveView, openModal } = useApp();
 
   const isStudent = currentRoleKey === 'UG_STUDENT' || currentRoleKey === 'PG_STUDENT';
 
@@ -35,6 +35,45 @@ export const FacultyDirView = () => {
 
   return (
     <div id="view-faculty_dir" className="view-section active">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+        <div>
+          <h2 style={{ fontSize: '1.25rem', color: 'var(--text-primary)', margin: 0 }}>Faculty Mentors & Supervisors</h2>
+          <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+            Live faculty supervisory workload and capstone quota balances
+          </p>
+        </div>
+        <button
+          className="btn btn-primary"
+          id="btnAddFaculty"
+          onClick={() => openModal('ADD_FACULTY')}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+        >
+          <IconUsers size={15} />
+          <span>+ Add Faculty Member</span>
+        </button>
+      </div>
+
+      {facultyList.length === 0 ? (
+        <div className="card-panel" style={{ textAlign: 'center', padding: '3.5rem 1.5rem' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#eef2ff', color: 'var(--accent-primary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
+            <IconUsers size={24} />
+          </div>
+          <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+            No Faculty Members Registered Yet
+          </h3>
+          <p style={{ maxWidth: '480px', margin: '0 auto 1.5rem auto', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            The departmental faculty directory is currently clean. Add new faculty members or have faculty sign up using their institutional accounts to establish supervisory quotas.
+          </p>
+          <button 
+            className="btn btn-primary"
+            onClick={() => openModal('ADD_FACULTY')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <IconUsers size={15} />
+            <span>+ Add First Faculty Member</span>
+          </button>
+        </div>
+      ) : (
       <div id="facultyDirectoryGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
         {facultyList.map(faculty => {
           const supervisedTeams = teamsList.filter(t => t.allocatedGuideId === faculty.id);
@@ -151,6 +190,7 @@ export const FacultyDirView = () => {
           );
         })}
       </div>
+      )}
     </div>
   );
 };

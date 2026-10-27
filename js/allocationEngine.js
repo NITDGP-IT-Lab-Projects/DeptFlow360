@@ -3,7 +3,7 @@
  * Project Allocation Engine: Preference-Based Gale-Shapley / Priority Matching
  */
 
-const getInitialFaculty = () => {
+const _getInitialFaculty = () => {
   if (typeof require !== "undefined" && typeof module !== "undefined") {
     try {
       const data = require("./data.js");
@@ -15,7 +15,7 @@ const getInitialFaculty = () => {
   return typeof INITIAL_FACULTY !== "undefined" ? JSON.parse(JSON.stringify(INITIAL_FACULTY)) : [];
 };
 
-const getInitialTeams = () => {
+const _getInitialTeams = () => {
   if (typeof require !== "undefined" && typeof module !== "undefined") {
     try {
       const data = require("./data.js");
@@ -30,8 +30,8 @@ const getInitialTeams = () => {
 class AllocationEngine {
   constructor(store) {
     this.store = store;
-    this.faculty = this.store.load("FACULTY", getInitialFaculty());
-    this.teams = this.store.load("PROJECT_TEAMS", getInitialTeams());
+    this.faculty = this.store.load("FACULTY", _getInitialFaculty());
+    this.teams = this.store.load("PROJECT_TEAMS", _getInitialTeams());
   }
 
   getFacultyList() {
@@ -44,6 +44,65 @@ class AllocationEngine {
 
   getFacultyById(id) {
     return this.faculty.find(f => f.id === id);
+  }
+
+  addFaculty(facultyData) {
+    const id = facultyData.id || `FAC-${Date.now().toString().slice(-4)}`;
+    const newFaculty = {
+      id,
+      name: facultyData.name,
+      role: facultyData.role || 'FACULTY',
+      designation: facultyData.designation || 'Assistant Professor',
+      email: facultyData.email,
+      specializations: Array.isArray(facultyData.specializations) 
+        ? facultyData.specializations 
+        : (facultyData.specializations ? facultyData.specializations.split(',').map(s => s.trim()) : ['Information Technology']),
+      ugQuotaMax: Number(facultyData.ugQuotaMax) || 3,
+      ugQuotaCurrent: 0,
+      pgQuotaMax: Number(facultyData.pgQuotaMax) || 2,
+      pgQuotaCurrent: 0,
+      avatar: facultyData.avatar || '👨‍🏫',
+      room: facultyData.room || 'IT Block'
+    };
+    
+    const existingIndex = this.faculty.findIndex(f => f.id === newFaculty.id || (newFaculty.email && f.email && f.email.toLowerCase() === newFaculty.email.toLowerCase()));
+    if (existingIndex >= 0) {
+      this.faculty[existingIndex] = { ...this.faculty[existingIndex], ...newFaculty };
+    } else {
+      this.faculty.push(newFaculty);
+    }
+    this.calculateQuotas();
+    this.save();
+    return newFaculty;
+  }
+
+  addTeam(teamData) {
+    const teamId = teamData.teamId || `${teamData.type || 'UG'}-TEAM-${Date.now().toString().slice(-4)}`;
+    const newTeam = {
+      teamId,
+      type: teamData.type || 'UG',
+      leadName: teamData.leadName,
+      members: Array.isArray(teamData.members) 
+        ? teamData.members 
+        : (teamData.members ? teamData.members.split(',').map(m => m.trim()) : [teamData.leadName]),
+      avgCgpa: Number(teamData.avgCgpa) || 8.0,
+      domain: teamData.domain || 'Software Engineering & AI',
+      title: teamData.title,
+      preferences: Array.isArray(teamData.preferences) ? teamData.preferences : [],
+      allocatedGuideId: teamData.allocatedGuideId || null,
+      status: teamData.status || (teamData.allocatedGuideId ? 'ALLOCATED' : 'UNALLOCATED'),
+      workflowId: teamData.workflowId || null
+    };
+
+    const existingIndex = this.teams.findIndex(t => t.teamId === newTeam.teamId);
+    if (existingIndex >= 0) {
+      this.teams[existingIndex] = { ...this.teams[existingIndex], ...newTeam };
+    } else {
+      this.teams.push(newTeam);
+    }
+    this.calculateQuotas();
+    this.save();
+    return newTeam;
   }
 
   // Calculate live quota utilization
@@ -202,8 +261,8 @@ class AllocationEngine {
 
   // Reset to initial
   resetAllocations() {
-    this.teams = getInitialTeams();
-    this.faculty = getInitialFaculty();
+    this.teams = _getInitialTeams();
+    this.faculty = _getInitialFaculty();
     this.calculateQuotas();
     this.save();
   }

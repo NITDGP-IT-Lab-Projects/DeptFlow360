@@ -29,20 +29,6 @@ export const AuthModal = () => {
 
   if (!authModalOpen) return null;
 
-  const quickAccounts = [
-    { label: 'HOD', name: 'Dr. Sen', email: 'hod.it@university.edu', pass: 'Admin@123', role: 'HOD' },
-    { label: 'Coord', name: 'Dr. Roy', email: 'ananya.roy@university.edu', pass: 'Coord@123', role: 'COORDINATOR' },
-    { label: 'Guide', name: 'Dr. Das', email: 'vikram.das@university.edu', pass: 'Guide@123', role: 'FACULTY' },
-    { label: 'PG', name: 'Sneha M.', email: 'sneha.m@university.edu', pass: 'Student@123', role: 'PG_STUDENT' },
-    { label: 'UG', name: 'Team 04', email: 'team04.lead@university.edu', pass: 'Student@123', role: 'UG_STUDENT' }
-  ];
-
-  const handleFillQuick = (acc) => {
-    setEmail(acc.email);
-    setPassword(acc.pass);
-    setErrorMsg('');
-  };
-
   const onSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
@@ -124,34 +110,7 @@ export const AuthModal = () => {
               </div>
             )}
 
-            {/* Quick Fill Pills for Evaluation in Sign In */}
-            {mode === 'SIGNIN' && (
-              <div style={{
-                background: '#f8fafc',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-md)',
-                padding: '0.75rem',
-                marginBottom: '0.25rem'
-              }}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em', marginBottom: '6px' }}>
-                  Quick Pre-Set Evaluation Logins
-                </div>
-                <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                  {quickAccounts.map(acc => (
-                    <button
-                      key={acc.label}
-                      type="button"
-                      className="filter-pill"
-                      style={{ fontSize: '0.72rem', padding: '0.2rem 0.55rem' }}
-                      onClick={() => handleFillQuick(acc)}
-                      title={`Fill ${acc.name} (${acc.role})`}
-                    >
-                      <strong>{acc.label}:</strong> {acc.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+
 
             {/* Sign Up Fields */}
             {mode === 'SIGNUP' && (

@@ -8,7 +8,7 @@ export const NewSubmissionModal = () => {
   const [type, setType] = useState('UG_PROJECT');
   const [title, setTitle] = useState('');
   const [domain, setDomain] = useState('');
-  const [proposedGuideId, setProposedGuideId] = useState(facultyList[0]?.id || 'FAC-03');
+  const [proposedGuideId, setProposedGuideId] = useState(facultyList[0]?.id || '');
   const [abstract, setAbstract] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -18,15 +18,16 @@ export const NewSubmissionModal = () => {
 
     setSubmitting(true);
     try {
-      const guideObj = facultyList.find(f => f.id === proposedGuideId);
+      const selectedGuideId = proposedGuideId || (facultyList[0]?.id || null);
+      const guideObj = facultyList.find(f => f.id === selectedGuideId);
       await handleCreateWorkflow({
         category,
         type,
         title,
         domain: domain || 'General IT',
-        proposedGuideId,
-        allocatedGuideId: category === 'UG' ? null : proposedGuideId,
-        guideName: guideObj ? guideObj.name : null,
+        proposedGuideId: selectedGuideId,
+        allocatedGuideId: category === 'UG' ? null : selectedGuideId,
+        guideName: guideObj ? guideObj.name : 'Department Faculty Pool',
         abstract
       });
       closeModal();
@@ -124,11 +125,15 @@ export const NewSubmissionModal = () => {
                   value={proposedGuideId}
                   onChange={(e) => setProposedGuideId(e.target.value)}
                 >
-                  {facultyList.map(f => (
-                    <option key={f.id} value={f.id}>
-                      {f.name} ({f.designation})
-                    </option>
-                  ))}
+                  {facultyList.length === 0 ? (
+                    <option value="">No faculty registered yet (Open Mentor Pool)</option>
+                  ) : (
+                    facultyList.map(f => (
+                      <option key={f.id} value={f.id}>
+                        {f.name} ({f.designation})
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
             </div>

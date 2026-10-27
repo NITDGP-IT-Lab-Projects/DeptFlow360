@@ -1,62 +1,20 @@
 /**
  * DeptFlow 360 - Workflow State Machine & Audit Engine (ES Module)
  */
-import { getInitialWorkflows } from './data.js';
+import { getInitialWorkflows, getInitialNotifications } from './data.js';
 
 export class WorkflowEngine {
   constructor(store) {
     this.store = store;
     this.workflows = this.store.load("WORKFLOWS", getInitialWorkflows());
-    // Auto-heal WF-2026-NOC-12 in cached store if guide details were missing
-    const noc12 = this.workflows.find(w => w.id === "WF-2026-NOC-12");
-    if (noc12 && !noc12.details?.proposedGuideId) {
-      if (!noc12.details) noc12.details = {};
-      noc12.details.proposedGuideId = "FAC-03";
-      noc12.details.allocatedGuideId = "FAC-03";
-      noc12.details.guideName = "Dr. Vikramaditya Das";
-      this.store.save("WORKFLOWS", this.workflows);
-    }
-    this.notifications = this.store.load("NOTIFICATIONS", [
-      {
-        id: "NOTIF-01",
-        title: "Action Required: Capstone Project Allotment",
-        message: "Rahul Verma (Team 04) proposal is pending final HOD sanction.",
-        timestamp: "10 mins ago",
-        read: false,
-        targetRole: "HOD",
-        workflowId: "WF-2026-UG-04"
-      },
-      {
-        id: "NOTIF-02",
-        title: "Requisition Review Required",
-        message: "NVIDIA Jetson AGX Orin requisition awaiting financial approval.",
-        timestamp: "1 hour ago",
-        read: false,
-        targetRole: "HOD",
-        workflowId: "WF-2026-REQ-08"
-      },
-      {
-        id: "NOTIF-03",
-        title: "RAC Review 2 Document Uploaded",
-        message: "Sneha Mukherjee submitted RAC Review 2 draft for review.",
-        timestamp: "Yesterday",
-        read: true,
-        targetRole: "FACULTY",
-        workflowId: "WF-2026-PG-01"
-      }
-    ]);
+    this.notifications = this.store.load("NOTIFICATIONS", getInitialNotifications());
   }
 
   resetDefaults() {
     this.workflows = getInitialWorkflows();
-    const noc12 = this.workflows.find(w => w.id === "WF-2026-NOC-12");
-    if (noc12) {
-      if (!noc12.details) noc12.details = {};
-      noc12.details.proposedGuideId = "FAC-03";
-      noc12.details.allocatedGuideId = "FAC-03";
-      noc12.details.guideName = "Dr. Vikramaditya Das";
-    }
+    this.notifications = getInitialNotifications();
     this.store.save("WORKFLOWS", this.workflows);
+    this.store.save("NOTIFICATIONS", this.notifications);
     return this.workflows;
   }
 
@@ -171,13 +129,18 @@ export class WorkflowEngine {
         targetNotifRole = "FACULTY";
         break;
 
+      case "GUIDE_APPROVE":
       case "GUIDE_ENDORSE":
         nextState = "UNDER_COORDINATOR_REVIEW";
         actionLabel = "GUIDE_ENDORSED";
+        if (wf.details && !wf.details.allocatedGuideId && actorRoleData.id) {
+          wf.details.allocatedGuideId = actorRoleData.id;
+        }
         notifMessage = `${actorRoleData.name} endorsed: ${wf.title}. Awaiting coordinator verification.`;
         targetNotifRole = "COORDINATOR";
         break;
 
+      case "COORDINATOR_FORWARD":
       case "COORDINATOR_VERIFY":
         nextState = "UNDER_HOD_REVIEW";
         actionLabel = "COORDINATOR_VERIFIED";
@@ -194,6 +157,8 @@ export class WorkflowEngine {
       case "HOD_APPROVE":
         nextState = "APPROVED";
         actionLabel = "HOD_SANCTIONED";
+        wf.sanctionDate = nowStr;
+        wf.sanctionLetterUrl = `sanction-${wf.id.toLowerCase()}.pdf`;
         notifMessage = `Official Approval granted by HOD for ${wf.title}. Project workspace activated!`;
         targetNotifRole = wf.category === "UG" ? "UG_STUDENT" : "PG_STUDENT";
         break;
@@ -355,6 +320,7 @@ export class WorkflowEngine {
 
     const totalScore = Object.values(rubricScores).reduce((acc, v) => acc + Number(v || 0), 0);
     milestone.score = totalScore;
+    milestone.grade = totalScore >= 90 ? "O" : totalScore >= 80 ? "E" : totalScore >= 70 ? "A" : totalScore >= 60 ? "B" : totalScore >= 50 ? "C" : "F";
     milestone.rubricScores = rubricScores;
     milestone.status = "EVALUATED";
     milestone.feedback = feedback;

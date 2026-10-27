@@ -1,21 +1,16 @@
 /**
  * DEPARTMENTAL ACTIVITY & WORKFLOW MANAGEMENT SYSTEM (DAWMS)
- * Unit Test Suite for AllocationEngine (Gale-Shapley / Priority Matching)
+ * Unit Test Suite for AllocationEngine (Zero-Sample-Data & Dynamic Onboarding)
  * Run with: node --test tests/allocationEngine.test.js
  */
 
 const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert');
 
-const {
-  INITIAL_FACULTY,
-  INITIAL_PROJECT_TEAMS,
-  DeptStore
-} = require('../js/data.js');
-
+const { DeptStore } = require('../js/data.js');
 const { AllocationEngine } = require('../js/allocationEngine.js');
 
-describe('AllocationEngine Tests', () => {
+describe('AllocationEngine (Zero-Sample-Data & Dynamic Provisioning)', () => {
   let engine;
 
   beforeEach(() => {
@@ -23,82 +18,188 @@ describe('AllocationEngine Tests', () => {
     engine = new AllocationEngine(DeptStore);
   });
 
-  it('should initialize with faculty quotas and project teams', () => {
+  it('should initialize cleanly with zero sample data', () => {
     const faculty = engine.getFacultyList();
     const teams = engine.getTeams();
 
     assert.ok(Array.isArray(faculty));
-    assert.strictEqual(faculty.length, 5);
+    assert.strictEqual(faculty.length, 0, 'Faculty list must start empty without mock records');
     assert.ok(Array.isArray(teams));
-    assert.strictEqual(teams.length, 8);
+    assert.strictEqual(teams.length, 0, 'Project teams list must start empty without mock records');
   });
 
-  it('should calculate live quotas accurately based on assignments', () => {
-    const quotas = engine.calculateQuotas();
-    assert.ok(quotas['FAC-01']);
-    assert.ok(quotas['FAC-02']);
-    assert.ok(quotas['FAC-03']);
+  it('should dynamically add faculty members with supervisory quotas', () => {
+    const f1 = engine.addFaculty({
+      id: 'FAC-DYN-01',
+      name: 'Dr. John Doe',
+      role: 'HOD',
+      designation: 'Professor & HOD',
+      email: 'john.doe@university.edu',
+      specializations: ['Distributed Systems', 'Cloud'],
+      ugQuotaMax: 3,
+      pgQuotaMax: 2
+    });
 
-    // Check that current counters match assigned teams
-    const teams = engine.getTeams();
-    const fac3UgTeams = teams.filter(t => t.allocatedGuideId === 'FAC-03' && t.type === 'UG').length;
-    assert.strictEqual(quotas['FAC-03'].ugCurrent, fac3UgTeams);
-  });
+    const f2 = engine.addFaculty({
+      id: 'FAC-DYN-02',
+      name: 'Dr. Jane Smith',
+      role: 'FACULTY',
+      designation: 'Associate Professor',
+      email: 'jane.smith@university.edu',
+      specializations: ['Artificial Intelligence', 'NLP'],
+      ugQuotaMax: 2,
+      pgQuotaMax: 1
+    });
 
-  it('should execute automated Gale-Shapley matching without exceeding faculty quotas', () => {
-    const result = engine.runAutomatedMatching();
-
-    assert.strictEqual(result.success, true);
-    assert.ok(Array.isArray(result.logs));
-    assert.ok(result.logs.length > 0);
-
-    const updatedTeams = engine.getTeams();
     const faculty = engine.getFacultyList();
-
-    // Verify all teams have an allocated guide
-    updatedTeams.forEach(team => {
-      assert.ok(team.allocatedGuideId !== null, `Team ${team.teamId} should be allocated a guide`);
-      assert.strictEqual(team.status, 'ALLOCATED');
-    });
-
-    // Verify hard capacity bounds: no faculty exceeds their ugQuotaMax or pgQuotaMax
-    const quotaMap = engine.calculateQuotas();
-    faculty.forEach(f => {
-      assert.ok(
-        quotaMap[f.id].ugCurrent <= f.ugQuotaMax,
-        `Faculty ${f.name} UG quota violated: ${quotaMap[f.id].ugCurrent} > ${f.ugQuotaMax}`
-      );
-      assert.ok(
-        quotaMap[f.id].pgCurrent <= f.pgQuotaMax,
-        `Faculty ${f.name} PG quota violated: ${quotaMap[f.id].pgCurrent} > ${f.pgQuotaMax}`
-      );
-    });
+    assert.strictEqual(faculty.length, 2);
+    assert.strictEqual(engine.getFacultyById('FAC-DYN-01').name, 'Dr. John Doe');
+    assert.strictEqual(engine.getFacultyById('FAC-DYN-02').specializations[0], 'Artificial Intelligence');
   });
 
-  it('should allow coordinator/HOD to execute manual override with audit justification', () => {
-    const targetTeamId = 'UG-TEAM-05';
-    const newFacultyId = 'FAC-05'; // Dr. Arindam Bhattacharya
-    const reason = 'Special embedded hardware requirement verified by coordinator.';
-    const actorName = 'Dr. Ananya Roy';
+  it('should dynamically register project teams with preferences and calculate quotas', () => {
+    // Add 2 mentors
+    engine.addFaculty({
+      id: 'FAC-01',
+      name: 'Dr. Mentor One',
+      role: 'FACULTY',
+      email: 'm1@university.edu',
+      ugQuotaMax: 2,
+      pgQuotaMax: 1
+    });
+    engine.addFaculty({
+      id: 'FAC-02',
+      name: 'Dr. Mentor Two',
+      role: 'FACULTY',
+      email: 'm2@university.edu',
+      ugQuotaMax: 2,
+      pgQuotaMax: 1
+    });
 
-    const overridden = engine.manualOverride(targetTeamId, newFacultyId, reason, actorName);
+    // Add 2 teams
+    engine.addTeam({
+      teamId: 'UG-TEAM-DYN-01',
+      type: 'UG',
+      leadName: 'Alice Student',
+      members: ['Alice Student', 'Bob Colleague'],
+      avgCgpa: 9.2,
+      domain: 'Cloud Computing',
+      title: 'Serverless Edge Orchestration',
+      preferences: ['FAC-01', 'FAC-02']
+    });
 
-    assert.strictEqual(overridden.allocatedGuideId, newFacultyId);
+    engine.addTeam({
+      teamId: 'UG-TEAM-DYN-02',
+      type: 'UG',
+      leadName: 'Charlie Scholar',
+      members: ['Charlie Scholar'],
+      avgCgpa: 8.7,
+      domain: 'AI / ML',
+      title: 'Vision-Language Transformers',
+      preferences: ['FAC-01', 'FAC-02']
+    });
+
+    const teams = engine.getTeams();
+    assert.strictEqual(teams.length, 2);
+    assert.strictEqual(teams[0].avgCgpa, 9.2);
+
+    const quotas = engine.calculateQuotas();
+    assert.strictEqual(quotas['FAC-01'].ugCurrent, 0);
+    assert.strictEqual(quotas['FAC-02'].ugCurrent, 0);
+  });
+
+  it('should execute automated Gale-Shapley matching on dynamically onboarded teams', () => {
+    // Mentor 1 has capacity for 1 UG team only
+    engine.addFaculty({
+      id: 'FAC-POPULAR',
+      name: 'Dr. Popular Guide',
+      role: 'FACULTY',
+      email: 'pop@university.edu',
+      ugQuotaMax: 1,
+      pgQuotaMax: 1
+    });
+
+    // Mentor 2 has capacity for 2 UG teams
+    engine.addFaculty({
+      id: 'FAC-BACKUP',
+      name: 'Dr. Backup Guide',
+      role: 'FACULTY',
+      email: 'backup@university.edu',
+      ugQuotaMax: 2,
+      pgQuotaMax: 1
+    });
+
+    // Team High CGPA (9.5) picks FAC-POPULAR as 1st choice
+    engine.addTeam({
+      teamId: 'TEAM-HIGH-CGPA',
+      type: 'UG',
+      leadName: 'Merit Lead',
+      members: ['Merit Lead'],
+      avgCgpa: 9.5,
+      domain: 'AI',
+      title: 'High CGPA Proposal',
+      preferences: ['FAC-POPULAR', 'FAC-BACKUP']
+    });
+
+    // Team Lower CGPA (8.0) also picks FAC-POPULAR as 1st choice
+    engine.addTeam({
+      teamId: 'TEAM-LOWER-CGPA',
+      type: 'UG',
+      leadName: 'Regular Lead',
+      members: ['Regular Lead'],
+      avgCgpa: 8.0,
+      domain: 'AI',
+      title: 'Regular CGPA Proposal',
+      preferences: ['FAC-POPULAR', 'FAC-BACKUP']
+    });
+
+    const matchResult = engine.runAutomatedMatching();
+    assert.strictEqual(matchResult.success, true);
+
+    const highTeam = engine.getTeams().find(t => t.teamId === 'TEAM-HIGH-CGPA');
+    const lowTeam = engine.getTeams().find(t => t.teamId === 'TEAM-LOWER-CGPA');
+
+    // High merit gets choice 1 (FAC-POPULAR)
+    assert.strictEqual(highTeam.allocatedGuideId, 'FAC-POPULAR');
+    assert.strictEqual(highTeam.status, 'ALLOCATED');
+
+    // Lower merit cascades to choice 2 (FAC-BACKUP) because quota was full
+    assert.strictEqual(lowTeam.allocatedGuideId, 'FAC-BACKUP');
+    assert.strictEqual(lowTeam.status, 'ALLOCATED');
+
+    // Quotas strictly respected
+    const quotaMap = engine.calculateQuotas();
+    assert.strictEqual(quotaMap['FAC-POPULAR'].ugCurrent, 1);
+    assert.strictEqual(quotaMap['FAC-BACKUP'].ugCurrent, 1);
+  });
+
+  it('should support manual coordinator override with complete audit logging', () => {
+    engine.addFaculty({ id: 'FAC-A', name: 'Dr. A', role: 'FACULTY', email: 'a@u.edu', ugQuotaMax: 3, pgQuotaMax: 2 });
+    engine.addFaculty({ id: 'FAC-B', name: 'Dr. B', role: 'FACULTY', email: 'b@u.edu', ugQuotaMax: 3, pgQuotaMax: 2 });
+
+    engine.addTeam({
+      teamId: 'TEAM-OVERRIDE',
+      type: 'UG',
+      leadName: 'Lead Student',
+      members: ['Lead Student'],
+      avgCgpa: 8.5,
+      domain: 'Cybersecurity',
+      title: 'Secure Enclaves',
+      preferences: ['FAC-A'],
+      allocatedGuideId: 'FAC-A'
+    });
+
+    const overridden = engine.manualOverride(
+      'TEAM-OVERRIDE',
+      'FAC-B',
+      'Hardware security lab access required with Dr. B',
+      'Dr. Coordinator'
+    );
+
+    assert.strictEqual(overridden.allocatedGuideId, 'FAC-B');
     assert.strictEqual(overridden.status, 'MANUALLY_ALLOCATED');
     assert.ok(overridden.overrideAudit);
-    assert.strictEqual(overridden.overrideAudit.by, actorName);
-    assert.strictEqual(overridden.overrideAudit.reason, reason);
-  });
-
-  it('should revert to default allocations upon reset', () => {
-    // Run matching first
-    engine.runAutomatedMatching();
-    // Then reset
-    engine.resetAllocations();
-
-    const teams = engine.getTeams();
-    const unallocated = teams.find(t => t.teamId === 'UG-TEAM-05');
-    assert.strictEqual(unallocated.allocatedGuideId, null);
-    assert.strictEqual(unallocated.status, 'UNALLOCATED');
+    assert.strictEqual(overridden.overrideAudit.by, 'Dr. Coordinator');
+    assert.strictEqual(overridden.overrideAudit.previousGuide, 'FAC-A');
   });
 });

@@ -39,6 +39,8 @@ const requiredFiles = [
   'js/data.js',
   'js/workflowEngine.js',
   'js/allocationEngine.js',
+  'src/components/modals/AddFacultyModal.jsx',
+  'src/components/modals/AddTeamModal.jsx',
   'docs/ARCHITECTURE_AND_DESIGN.md',
   'README.md'
 ];
