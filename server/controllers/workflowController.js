@@ -138,7 +138,7 @@ exports.createWorkflow = async (req, res) => {
         proposedGuideId: proposedGuideId || null,
         allocatedGuideId: (category === 'UG') ? null : (req.body.allocatedGuideId || proposedGuideId || null),
         guideName: req.body.guideName || null,
-        purpose: isDirectDept ? abstract : null
+        purpose: (category === 'DEPARTMENTAL') ? abstract : null
       },
       state: initialState,
       slaDaysRemaining: 7,
