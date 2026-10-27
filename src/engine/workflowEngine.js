@@ -137,7 +137,7 @@ export class WorkflowEngine {
     return actions;
   }
 
-  transition(workflowId, actionKey, comment, actorRoleKey, actorRoleData) {
+  transition(workflowId, actionKey, comment, actorRoleKey, actorRoleData, payload = {}) {
     const wf = this.getById(workflowId);
     if (!wf) throw new Error(`Workflow with ID ${workflowId} not found.`);
 
@@ -156,6 +156,13 @@ export class WorkflowEngine {
       case "STUDENT_RESUBMIT":
         nextState = "UNDER_GUIDE_REVIEW";
         actionLabel = "REVISION_SUBMITTED";
+        if (payload.title && payload.title.trim()) wf.title = payload.title.trim();
+        if (!wf.details) wf.details = {};
+        if (payload.domain && payload.domain.trim()) wf.details.domain = payload.domain.trim();
+        if (payload.abstract && payload.abstract.trim()) wf.details.abstract = payload.abstract.trim();
+        if (payload.proposedGuideId) wf.details.proposedGuideId = payload.proposedGuideId;
+        if (payload.guideName) wf.details.guideName = payload.guideName;
+        if (wf.category === 'UG') wf.details.allocatedGuideId = null;
         notifMessage = `${actorRoleData.name} resubmitted revised proposal: ${wf.title}`;
         targetNotifRole = "FACULTY";
         break;

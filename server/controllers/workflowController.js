@@ -231,7 +231,26 @@ exports.transitionWorkflow = async (req, res) => {
       case 'STUDENT_RESUBMIT':
         nextState = 'UNDER_GUIDE_REVIEW';
         actionLabel = 'REVISION_SUBMITTED';
-        notifMessage = `${actorName} resubmitted: ${wf.title}`;
+        if (req.body.title && req.body.title.trim()) {
+          wf.title = req.body.title.trim();
+        }
+        if (!wf.details) wf.details = {};
+        if (req.body.domain && req.body.domain.trim()) {
+          wf.details.domain = req.body.domain.trim();
+        }
+        if (req.body.abstract && req.body.abstract.trim()) {
+          wf.details.abstract = req.body.abstract.trim();
+        }
+        if (req.body.proposedGuideId) {
+          wf.details.proposedGuideId = req.body.proposedGuideId;
+        }
+        if (req.body.guideName) {
+          wf.details.guideName = req.body.guideName;
+        }
+        if (wf.category === 'UG') {
+          wf.details.allocatedGuideId = null;
+        }
+        notifMessage = `Revised proposal resubmitted by ${actorName}: ${wf.title}. Re-entering approval chain at Guide Review.`;
         targetNotifRole = 'FACULTY';
         break;
 
@@ -319,6 +338,17 @@ exports.transitionWorkflow = async (req, res) => {
           await ProjectTeam.findOneAndUpdate(
             { workflowId: wf.id },
             { 
+              allocatedGuideId: null,
+              status: 'UNALLOCATED' 
+            }
+          );
+        } else if (actionKey === 'RESUBMIT' || actionKey === 'STUDENT_RESUBMIT') {
+          await ProjectTeam.findOneAndUpdate(
+            { workflowId: wf.id },
+            { 
+              title: wf.title,
+              domain: wf.details?.domain,
+              preferences: wf.details?.proposedGuideId ? [wf.details.proposedGuideId] : [],
               allocatedGuideId: null,
               status: 'UNALLOCATED' 
             }
