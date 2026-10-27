@@ -38,12 +38,52 @@ class AllocationEngine {
     return this.faculty;
   }
 
+  setFacultyList(list) {
+    if (Array.isArray(list)) {
+      this.faculty = list;
+      this.calculateQuotas();
+      if (this.store) {
+        this.store.save("FACULTY", this.faculty);
+      }
+    }
+  }
+
   getTeams() {
     return this.teams;
   }
 
+  setTeams(list) {
+    if (Array.isArray(list)) {
+      this.teams = list;
+      this.calculateQuotas();
+      if (this.store) {
+        this.store.save("PROJECT_TEAMS", this.teams);
+      }
+    }
+  }
+
   getFacultyById(id) {
-    return this.faculty.find(f => f.id === id);
+    let f = this.faculty.find(fac => fac.id === id || (fac._id && (fac._id === id || String(fac._id) === String(id))));
+    if (!f && this.store) {
+      const stored = this.store.load("FACULTY", []);
+      if (Array.isArray(stored) && stored.length > 0) {
+        this.faculty = stored;
+        f = this.faculty.find(fac => fac.id === id || (fac._id && (fac._id === id || String(fac._id) === String(id))));
+      }
+    }
+    return f || null;
+  }
+
+  getTeamById(id) {
+    let t = this.teams.find(team => team.teamId === id || team.id === id || (team._id && (team._id === id || String(team._id) === String(id))));
+    if (!t && this.store) {
+      const stored = this.store.load("PROJECT_TEAMS", []);
+      if (Array.isArray(stored) && stored.length > 0) {
+        this.teams = stored;
+        t = this.teams.find(team => team.teamId === id || team.id === id || (team._id && (team._id === id || String(team._id) === String(id))));
+      }
+    }
+    return t || null;
   }
 
   addFaculty(facultyData) {

@@ -22,8 +22,39 @@ export class WorkflowEngine {
     return this.workflows;
   }
 
+  setWorkflows(list) {
+    if (Array.isArray(list)) {
+      this.workflows = list;
+      if (this.store) {
+        this.store.save("WORKFLOWS", this.workflows);
+      }
+    }
+  }
+
+  updateWorkflow(wf) {
+    if (!wf) return;
+    const wfKey = wf.id || wf._id;
+    const idx = this.workflows.findIndex(w => w.id === wfKey || (wf._id && (w._id === wf._id || w.id === wf._id || String(w._id) === String(wf._id))));
+    if (idx >= 0) {
+      this.workflows[idx] = { ...this.workflows[idx], ...wf };
+    } else {
+      this.workflows.unshift(wf);
+    }
+    if (this.store) {
+      this.store.save("WORKFLOWS", this.workflows);
+    }
+  }
+
   getById(id) {
-    return this.workflows.find(w => w.id === id) || null;
+    let wf = this.workflows.find(w => w.id === id || (w._id && (w._id === id || String(w._id) === String(id))));
+    if (!wf && this.store) {
+      const stored = this.store.load("WORKFLOWS", []);
+      if (Array.isArray(stored) && stored.length > 0) {
+        this.workflows = stored;
+        wf = this.workflows.find(w => w.id === id || (w._id && (w._id === id || String(w._id) === String(id))));
+      }
+    }
+    return wf || null;
   }
 
   getByRole(currentRoleKey, currentRoleData) {

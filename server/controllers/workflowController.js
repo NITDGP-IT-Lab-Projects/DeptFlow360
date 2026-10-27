@@ -1,5 +1,15 @@
+const mongoose = require('mongoose');
 const Workflow = require('../models/Workflow');
 const Notification = require('../models/Notification');
+
+// Helper to query workflow by either business tracking ID or MongoDB _id
+const findWorkflowById = (id) => {
+  const query = [{ id: id }];
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    query.push({ _id: id });
+  }
+  return Workflow.findOne({ $or: query });
+};
 
 // GET /api/workflows - List workflows with role & status filters
 exports.getWorkflows = async (req, res) => {
@@ -60,7 +70,7 @@ exports.getWorkflows = async (req, res) => {
 // GET /api/workflows/:id - Single workflow details
 exports.getWorkflowById = async (req, res) => {
   try {
-    const workflow = await Workflow.findOne({ id: req.params.id });
+    const workflow = await findWorkflowById(req.params.id);
     if (!workflow) {
       return res.status(404).json({ success: false, error: 'Workflow not found' });
     }
@@ -188,7 +198,7 @@ exports.transitionWorkflow = async (req, res) => {
     const actorName = req.body.actorName || req.body.actorData?.name || 'Authority';
     const actorId = req.body.actorId || req.body.actorData?.id || 'SYS';
 
-    const wf = await Workflow.findOne({ id: req.params.id });
+    const wf = await findWorkflowById(req.params.id);
 
     if (!wf) {
       return res.status(404).json({ success: false, error: 'Workflow not found.' });
@@ -286,7 +296,7 @@ exports.transitionWorkflow = async (req, res) => {
 exports.evaluateMilestone = async (req, res) => {
   try {
     const { rubricScores, feedback, evaluatorData } = req.body;
-    const wf = await Workflow.findOne({ id: req.params.id });
+    const wf = await findWorkflowById(req.params.id);
 
     if (!wf || !wf.milestones) {
       return res.status(404).json({ success: false, error: 'Workflow or milestones not found.' });

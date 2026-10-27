@@ -116,6 +116,7 @@ export const AppProvider = ({ children }) => {
         try {
           const wfRes = await api.getWorkflows();
           if (wfRes && wfRes.success && Array.isArray(wfRes.data)) {
+            workflowEngine.setWorkflows(wfRes.data);
             setWorkflows(wfRes.data);
             DeptStore.save("WORKFLOWS", wfRes.data);
           }
@@ -127,6 +128,7 @@ export const AppProvider = ({ children }) => {
         try {
           const teamsRes = await api.getTeams();
           if (teamsRes && teamsRes.success && Array.isArray(teamsRes.data)) {
+            allocationEngine.setTeams(teamsRes.data);
             setTeamsList(teamsRes.data);
             DeptStore.save("PROJECT_TEAMS", teamsRes.data);
           }
@@ -138,6 +140,7 @@ export const AppProvider = ({ children }) => {
         try {
           const facRes = await api.getFaculty();
           if (facRes && facRes.success && Array.isArray(facRes.data)) {
+            allocationEngine.setFacultyList(facRes.data);
             setFacultyList(facRes.data);
             DeptStore.save("FACULTY", facRes.data);
           }
@@ -150,7 +153,7 @@ export const AppProvider = ({ children }) => {
     } catch {
       setBackendOnline(false);
     }
-  }, []);
+  }, [workflowEngine, allocationEngine]);
 
   useEffect(() => {
     syncWithBackend();
@@ -329,7 +332,39 @@ export const AppProvider = ({ children }) => {
   // Actions
   const handleTransition = useCallback(async (workflowId, actionKey, comment) => {
     try {
-      const updatedWf = workflowEngine.transition(
+      let updatedWf = null;
+
+      // 1. If backend is online, transition in MongoDB Atlas via Express API
+      if (backendOnline) {
+        try {
+          const res = await api.transitionWorkflow(workflowId, {
+            action: actionKey,
+            actionKey,
+            remarks: comment,
+            comment,
+            actorRole: currentRoleData.title || currentRoleKey,
+            actorName: currentRoleData.name || 'Authority',
+            actorId: currentRoleData.id || currentUser?.id || 'SYS'
+          });
+          if (res && res.success && res.data) {
+            updatedWf = res.data;
+            workflowEngine.updateWorkflow(updatedWf);
+            setWorkflows([...workflowEngine.getAll()]);
+            addToast("success", "Workflow Updated", `Action ${actionKey} successfully committed to audit ledger.`);
+            return updatedWf;
+          }
+        } catch (apiErr) {
+          console.warn("Backend API transition error, attempting local engine fallback:", apiErr.message);
+        }
+      }
+
+      // 2. Ensure engine workflows are loaded from state/store if missing
+      if (!workflowEngine.getById(workflowId) && workflows.length > 0) {
+        workflowEngine.setWorkflows(workflows);
+      }
+
+      // 3. Fallback to local engine transition
+      updatedWf = workflowEngine.transition(
         workflowId, 
         actionKey, 
         comment, 
@@ -339,17 +374,19 @@ export const AppProvider = ({ children }) => {
       setWorkflows([...workflowEngine.getAll()]);
       setNotifications([...workflowEngine.notifications]);
 
-      // Sync with Express backend
-      try {
-        await api.transitionWorkflow(workflowId, {
-          action: actionKey,
-          remarks: comment,
-          actorRole: currentRoleData.title || currentRoleKey,
-          actorName: currentRoleData.name
-        });
-        setBackendOnline(true);
-      } catch (err) {
-        console.warn("Express backend transition sync error (offline or pending):", err.message);
+      // If backend was thought to be offline, try background sync
+      if (!backendOnline) {
+        try {
+          await api.transitionWorkflow(workflowId, {
+            action: actionKey,
+            actionKey,
+            remarks: comment,
+            comment,
+            actorRole: currentRoleData.title || currentRoleKey,
+            actorName: currentRoleData.name || 'Authority'
+          });
+          setBackendOnline(true);
+        } catch {}
       }
 
       addToast("success", "Workflow Updated", `Action ${actionKey} successfully committed to audit ledger.`);
@@ -358,7 +395,7 @@ export const AppProvider = ({ children }) => {
       addToast("danger", "Transition Failed", err.message);
       throw err;
     }
-  }, [workflowEngine, currentRoleKey, currentRoleData, addToast]);
+  }, [workflowEngine, backendOnline, currentRoleKey, currentRoleData, currentUser, workflows, addToast]);
 
   const handleCreateWorkflow = useCallback(async (payload) => {
     try {
@@ -467,6 +504,31 @@ export const AppProvider = ({ children }) => {
         ? { literatureSurvey: Math.round(rubricScores * 0.3), rigorAndMath: Math.round(rubricScores * 0.4), oralDefense: Math.round(rubricScores * 0.3) }
         : rubricScores;
 
+      // 1. If backend is online, score in MongoDB Atlas via Express API
+      if (backendOnline) {
+        try {
+          const res = await api.evaluateMilestone(workflowId, milestoneId, {
+            rubricScores: normalizedScores,
+            feedback,
+            evaluatorData: currentRoleData
+          });
+          if (res && res.success && res.data) {
+            workflowEngine.updateWorkflow(res.data);
+            setWorkflows([...workflowEngine.getAll()]);
+            const updatedMilestone = res.data.milestones?.find(m => m.id === milestoneId);
+            addToast("success", "Milestone Graded", `Defense score sealed with Outcome Grade ${updatedMilestone?.grade || 'O'}.`);
+            return updatedMilestone || res.data;
+          }
+        } catch (err) {
+          console.warn("Express backend rubric sync error, falling back to local engine:", err.message);
+        }
+      }
+
+      // 2. Ensure engine workflows are loaded
+      if (!workflowEngine.getById(workflowId) && workflows.length > 0) {
+        workflowEngine.setWorkflows(workflows);
+      }
+
       const milestone = workflowEngine.evaluateMilestone(
         workflowId, 
         milestoneId, 
@@ -477,25 +539,13 @@ export const AppProvider = ({ children }) => {
       setWorkflows([...workflowEngine.getAll()]);
       setNotifications([...workflowEngine.notifications]);
 
-      if (backendOnline) {
-        try {
-          await api.evaluateMilestone(workflowId, milestoneId, {
-            rubricScores: normalizedScores,
-            feedback,
-            evaluatorData: currentRoleData
-          });
-        } catch (err) {
-          console.warn("Express backend rubric sync error:", err);
-        }
-      }
-
       addToast("success", "Milestone Graded", `Defense score sealed with Outcome Grade ${milestone.grade || 'O'}.`);
       return milestone;
     } catch (err) {
       addToast("danger", "Grading Failed", err.message);
       throw err;
     }
-  }, [workflowEngine, currentRoleData, backendOnline, addToast]);
+  }, [workflowEngine, currentRoleData, backendOnline, workflows, addToast]);
 
   const handleRunAllocation = useCallback(async () => {
     try {
