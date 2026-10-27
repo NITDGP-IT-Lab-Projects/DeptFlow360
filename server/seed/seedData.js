@@ -440,6 +440,9 @@ const INITIAL_WORKFLOWS = [
       degree: "M.Tech IT (Sem 3)"
     },
     details: {
+      proposedGuideId: "FAC-03",
+      allocatedGuideId: "FAC-03",
+      guideName: "Dr. Vikramaditya Das",
       company: "Intel Labs Bangalore",
       stipend: "₹65,000 / month",
       duration: "Dec 1, 2026 to May 31, 2027",
@@ -589,6 +592,18 @@ const autoSeedDatabase = async () => {
     if (workflowCount === 0) {
       await Workflow.insertMany(INITIAL_WORKFLOWS);
       console.log('🌱 Seeded initial Workflows into MongoDB Atlas.');
+    } else {
+      // Ensure WF-2026-NOC-12 has guide assigned in MongoDB if it exists without one
+      await Workflow.updateOne(
+        { id: 'WF-2026-NOC-12', 'details.proposedGuideId': { $exists: false } },
+        { 
+          $set: { 
+            'details.proposedGuideId': 'FAC-03',
+            'details.allocatedGuideId': 'FAC-03',
+            'details.guideName': 'Dr. Vikramaditya Das'
+          } 
+        }
+      );
     }
 
     const notifCount = await Notification.countDocuments();

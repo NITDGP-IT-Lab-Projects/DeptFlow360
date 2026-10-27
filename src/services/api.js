@@ -170,17 +170,35 @@ export const api = {
     });
   },
 
-  async transitionWorkflow(id, { action, remarks, actorRole, actorName }) {
+  async transitionWorkflow(id, { action, actionKey, remarks, comment, actorRole, actorName }) {
+    const act = actionKey || action;
+    const comm = comment || remarks || '';
     return await apiRequest(`/workflows/${id}/transition`, {
-      method: 'PUT',
-      body: JSON.stringify({ action, remarks, actorRole, actorName })
+      method: 'POST',
+      body: JSON.stringify({ 
+        action: act, 
+        actionKey: act, 
+        remarks: comm, 
+        comment: comm, 
+        actorRole, 
+        actorName,
+        actorData: { name: actorName, role: actorRole, title: actorRole }
+      })
+    });
+  },
+
+  async evaluateMilestone(id, milestoneId, { rubricScores, feedback, evaluatorData }) {
+    return await apiRequest(`/workflows/${id}/milestones/${milestoneId}/evaluate`, {
+      method: 'POST',
+      body: JSON.stringify({ rubricScores, feedback, evaluatorData })
     });
   },
 
   async updateRubric(id, { rubricScores, qualitativeFeedback, evaluatedBy }) {
-    return await apiRequest(`/workflows/${id}/rubric`, {
-      method: 'PUT',
-      body: JSON.stringify({ rubricScores, qualitativeFeedback, evaluatedBy })
+    return await this.evaluateMilestone(id, 'M1', {
+      rubricScores,
+      feedback: qualitativeFeedback,
+      evaluatorData: { name: evaluatedBy }
     });
   },
 

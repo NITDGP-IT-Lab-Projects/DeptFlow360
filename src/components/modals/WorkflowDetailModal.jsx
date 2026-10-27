@@ -11,8 +11,10 @@ export const WorkflowDetailModal = ({ workflow }) => {
   const isStudent = currentRoleKey === 'UG_STUDENT' || currentRoleKey === 'PG_STUDENT';
   const isMySubmission = (
     (currentRoleData?.id && workflow.submittedBy?.id === currentRoleData.id) || 
-    (currentUser?.email && workflow.submittedBy?.email?.toLowerCase() === currentUser.email.toLowerCase()) ||
-    (currentUser?.name && workflow.submittedBy?.name?.toLowerCase() === currentUser.name.toLowerCase())
+    (currentUser?.id && workflow.submittedBy?.id === currentUser.id) ||
+    (currentUser?.email && workflow.submittedBy?.email && workflow.submittedBy.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+    (currentUser?.name && workflow.submittedBy?.name && workflow.submittedBy.name.toLowerCase().includes(currentUser.name.toLowerCase())) ||
+    (workflow.submittedBy?.teamMembers && Array.isArray(workflow.submittedBy.teamMembers) && currentUser?.name && workflow.submittedBy.teamMembers.some(m => m.toLowerCase().includes(currentUser.name.toLowerCase())))
   );
 
   // Data isolation: Block students from inspecting proposals of other students
@@ -117,6 +119,29 @@ export const WorkflowDetailModal = ({ workflow }) => {
         </div>
 
         <div className="modal-body">
+          {workflow.state === 'REVISION_REQUESTED' && (
+            <div style={{
+              background: '#fffbeb',
+              border: '1px solid #fde68a',
+              borderRadius: 'var(--radius-md)',
+              padding: '0.85rem 1rem',
+              marginBottom: '1rem',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '0.75rem'
+            }}>
+              <span style={{ fontSize: '1.25rem', lineHeight: 1 }}>⚠️</span>
+              <div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#92400e', marginBottom: '2px' }}>
+                  Revision Required by Academic Authority
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#b45309', lineHeight: 1.4 }}>
+                  This proposal requires amendments before proceeding through the departmental clearance chain. Check the reviewer comments in the Chronological Audit Ledger below, make required changes, and submit your revision.
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Stepper Progress */}
           <div className="stepper-container" style={{ margin: '0.5rem 0 1.5rem 0' }}>
             {steps.map((step, idx) => {
@@ -239,13 +264,13 @@ export const WorkflowDetailModal = ({ workflow }) => {
               padding: '1rem'
             }}>
               <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-                Authority Clearance Controls ({currentRoleData.title})
+                {isStudent ? 'Submit Revised Proposal for Academic Re-evaluation' : `Authority Clearance Controls (${currentRoleData.title})`}
               </div>
               <div style={{ marginBottom: '0.75rem' }}>
                 <input 
                   type="text" 
                   className="form-control" 
-                  placeholder="Enter remarks or justification comments for the permanent audit trail..."
+                  placeholder={isStudent ? "Describe revisions and updates made to this proposal..." : "Enter remarks or justification comments for the permanent audit trail..."}
                   value={remarks}
                   onChange={(e) => setRemarks(e.target.value)}
                 />

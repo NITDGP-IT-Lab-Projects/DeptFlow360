@@ -19,6 +19,15 @@ class WorkflowEngine {
   constructor(store) {
     this.store = store;
     this.workflows = this.store.load("WORKFLOWS", getInitialWorkflows());
+    // Auto-heal WF-2026-NOC-12 in cached store if guide details were missing
+    const noc12 = this.workflows.find(w => w.id === "WF-2026-NOC-12");
+    if (noc12 && !noc12.details?.proposedGuideId) {
+      if (!noc12.details) noc12.details = {};
+      noc12.details.proposedGuideId = "FAC-03";
+      noc12.details.allocatedGuideId = "FAC-03";
+      noc12.details.guideName = "Dr. Vikramaditya Das";
+      this.store.save("WORKFLOWS", this.workflows);
+    }
     this.notifications = this.store.load("NOTIFICATIONS", [
       {
         id: "NOTIF-01",
@@ -48,6 +57,19 @@ class WorkflowEngine {
         workflowId: "WF-2026-PG-01"
       }
     ]);
+  }
+
+  resetDefaults() {
+    this.workflows = getInitialWorkflows();
+    const noc12 = this.workflows.find(w => w.id === "WF-2026-NOC-12");
+    if (noc12) {
+      if (!noc12.details) noc12.details = {};
+      noc12.details.proposedGuideId = "FAC-03";
+      noc12.details.allocatedGuideId = "FAC-03";
+      noc12.details.guideName = "Dr. Vikramaditya Das";
+    }
+    this.store.save("WORKFLOWS", this.workflows);
+    return this.workflows;
   }
 
   // Get all active workflows
@@ -96,19 +118,23 @@ class WorkflowEngine {
 
     const state = workflow.state;
 
+    const isOwner = (workflow.submittedBy?.id === activeRoleData?.id) ||
+                    (activeRoleData?.email && workflow.submittedBy?.email?.toLowerCase() === activeRoleData.email.toLowerCase()) ||
+                    (activeRoleData?.name && workflow.submittedBy?.name?.toLowerCase().includes(activeRoleData.name.toLowerCase()));
+
     // Student Actions
-    if ((activeRoleKey === "UG_STUDENT" || activeRoleKey === "PG_STUDENT") && 
-        (workflow.submittedBy.id === activeRoleData.id)) {
+    if ((activeRoleKey === "UG_STUDENT" || activeRoleKey === "PG_STUDENT") && isOwner) {
       if (state === "DRAFT" || state === "REVISION_REQUESTED") {
-        actions.push({ key: "RESUBMIT", label: "Resubmit with Changes", variant: "primary" });
+        actions.push({ key: "STUDENT_RESUBMIT", label: "Resubmit with Changes", variant: "primary" });
       }
       return actions;
     }
 
     // Faculty Actions
     if (activeRoleKey === "FACULTY") {
-      const isGuide = (workflow.details.allocatedGuideId === activeRoleData.id || 
-                       workflow.details.proposedGuideId === activeRoleData.id);
+      const isGuide = (workflow.details?.allocatedGuideId === activeRoleData.id || 
+                       workflow.details?.proposedGuideId === activeRoleData.id ||
+                       (activeRoleData?.name && workflow.details?.guideName && workflow.details.guideName.toLowerCase().includes(activeRoleData.name.toLowerCase())));
 
       if (state === "UNDER_GUIDE_REVIEW" && isGuide) {
         actions.push({ key: "GUIDE_ENDORSE", label: "Endorse & Forward to Coordinator", variant: "success" });
@@ -163,9 +189,10 @@ class WorkflowEngine {
 
     switch (actionKey) {
       case "RESUBMIT":
+      case "STUDENT_RESUBMIT":
         nextState = "UNDER_GUIDE_REVIEW";
         actionLabel = "STUDENT_RESUBMITTED";
-        notifMessage = `${actorRoleData.name} resubmitted: ${wf.title}`;
+        notifMessage = `${actorRoleData.name} resubmitted revised proposal: ${wf.title}`;
         targetNotifRole = "FACULTY";
         break;
 

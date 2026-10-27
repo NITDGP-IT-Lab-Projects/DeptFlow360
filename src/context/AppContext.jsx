@@ -387,10 +387,14 @@ export const AppProvider = ({ children }) => {
 
   const handleEvaluateMilestone = useCallback(async (workflowId, milestoneId, rubricScores, feedback) => {
     try {
+      const normalizedScores = typeof rubricScores === 'number'
+        ? { literatureSurvey: Math.round(rubricScores * 0.3), rigorAndMath: Math.round(rubricScores * 0.4), oralDefense: Math.round(rubricScores * 0.3) }
+        : rubricScores;
+
       const milestone = workflowEngine.evaluateMilestone(
         workflowId, 
         milestoneId, 
-        rubricScores, 
+        normalizedScores, 
         feedback, 
         currentRoleData
       );
@@ -399,14 +403,10 @@ export const AppProvider = ({ children }) => {
 
       if (backendOnline) {
         try {
-          await api.updateRubric(workflowId, {
-            rubricScores: {
-              literatureReview: rubricScores.literatureReview || rubricScores.litScore || 25,
-              methodology: rubricScores.methodology || rubricScores.rigorScore || 35,
-              presentation: rubricScores.presentation || rubricScores.oralScore || 26
-            },
-            qualitativeFeedback: feedback,
-            evaluatedBy: currentRoleData.name
+          await api.evaluateMilestone(workflowId, milestoneId, {
+            rubricScores: normalizedScores,
+            feedback,
+            evaluatorData: currentRoleData
           });
         } catch (err) {
           console.warn("Express backend rubric sync error:", err);
@@ -570,6 +570,7 @@ export const AppProvider = ({ children }) => {
     handleWorkflowTransition: handleTransition,
     handleCreateWorkflow,
     handleEvaluateMilestone,
+    handleScoreMilestone: handleEvaluateMilestone,
     handleRunAllocation,
     handleManualOverride,
     handleResetAllocations,

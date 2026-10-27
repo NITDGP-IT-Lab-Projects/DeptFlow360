@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
 
 export const RubricScoringModal = ({ workflow: propWf, milestone: propMs, data }) => {
-  const { closeModal, handleScoreMilestone } = useApp();
+  const { closeModal, handleEvaluateMilestone, handleScoreMilestone } = useApp();
 
   const workflow = propWf || data?.workflow;
   const milestone = propMs || data?.milestone;
@@ -32,7 +32,19 @@ export const RubricScoringModal = ({ workflow: propWf, milestone: propMs, data }
     e.preventDefault();
     setSubmitting(true);
     try {
-      await handleScoreMilestone(workflow.id, milestone.id, totalScore, feedback);
+      const evalFn = handleEvaluateMilestone || handleScoreMilestone;
+      if (evalFn) {
+        await evalFn(
+          workflow.id, 
+          milestone.id, 
+          {
+            literatureSurvey: Number(litScore),
+            rigorAndMath: Number(rigorScore),
+            oralDefense: Number(oralScore)
+          }, 
+          feedback
+        );
+      }
       closeModal();
     } catch {
       setSubmitting(false);

@@ -490,6 +490,9 @@ export const INITIAL_WORKFLOWS = [
       degree: "M.Tech IT (Sem 3)"
     },
     details: {
+      proposedGuideId: "FAC-03",
+      allocatedGuideId: "FAC-03",
+      guideName: "Dr. Vikramaditya Das",
       company: "Intel Labs Bangalore",
       stipend: "₹65,000 / month",
       duration: "Dec 1, 2026 to May 31, 2027",
