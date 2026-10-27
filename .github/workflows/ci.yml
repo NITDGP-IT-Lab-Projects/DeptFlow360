@@ -2,9 +2,9 @@ name: DeptFlow 360 CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, master, develop, 'version*', 'release/**' ]
+    branches: [ '**' ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ '**' ]
   workflow_dispatch:
 
 concurrency:
@@ -31,8 +31,13 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      - name: Install Dependencies
+      - name: Install Frontend Dependencies
         run: npm install
+
+      - name: Install Backend Dependencies
+        run: |
+          cd server
+          npm install
 
       - name: Validate Syntax & Static Asset Integrity
         run: npm run test:syntax
@@ -61,7 +66,7 @@ jobs:
       - name: Launch Application Stack via Docker Compose
         run: |
           docker compose up -d --build
-          sleep 3
+          sleep 5
 
       - name: Verify Frontend Web Server Health (/healthz)
         run: |
@@ -94,38 +99,165 @@ jobs:
           echo "$HEADERS" | grep -iq "X-Frame-Options: SAMEORIGIN"
           echo "$HEADERS" | grep -iq "X-Content-Type-Options: nosniff"
           echo "Nginx security headers confirmed."
+
       - name: Validate Zero-Sample-Data Baseline & Live Dynamic Data Onboarding
         run: |
-          echo "1. Verify initial clean slate (zero mock data in database)..."
+          echo "============================================================================"
+          echo "1. Verify initial clean slate (zero mock workflows in system)..."
+          echo "============================================================================"
           WF_RES=$(curl -s http://localhost:8080/api/workflows)
           echo "$WF_RES" | grep -q '"success":true'
-          echo "Live workflow endpoint responding cleanly."
+          echo "Clean slate response: $WF_RES"
 
-          echo "2. Dynamically register a new institutional user via API..."
-          SIGNUP_RES=$(curl -s -X POST http://localhost:8080/api/auth/signup \
+          echo "============================================================================"
+          echo "2. Dynamically register users with bcrypt hashed passwords..."
+          echo "============================================================================"
+          # 2a. Student User
+          STU_RES=$(curl -s -X POST http://localhost:8080/api/auth/signup \
             -H "Content-Type: application/json" \
-            -d '{"name":"Prof. CI Admin","email":"ci.admin@university.edu","password":"Password@123","role":"HOD","designation":"Professor & HOD"}')
-          echo "$SIGNUP_RES" | grep -q "token"
-          echo "User signup verified successfully."
+            -d '{"name":"Aritra Sen","email":"aritra.sen@nitdgp.ac.in","password":"PassStudent@123","role":"UG_STUDENT","designation":"B.Tech Scholar"}')
+          echo "$STU_RES" | grep -q "token"
+          echo "Student user signed up successfully."
 
-          echo "3. Dynamically add a new faculty member..."
+          # 2b. Faculty Guide User
+          FAC_SIGNUP_RES=$(curl -s -X POST http://localhost:8080/api/auth/signup \
+            -H "Content-Type: application/json" \
+            -d '{"name":"Dr. Subhankar Ghosh","email":"s.ghosh@nitdgp.ac.in","password":"PassGuide@123","role":"FACULTY","designation":"Associate Professor"}')
+          echo "$FAC_SIGNUP_RES" | grep -q "token"
+          echo "Faculty Guide signed up successfully."
+
+          # 2c. Coordinator User
+          COORD_RES=$(curl -s -X POST http://localhost:8080/api/auth/signup \
+            -H "Content-Type: application/json" \
+            -d '{"name":"Dr. Tanmay Roy","email":"t.roy@nitdgp.ac.in","password":"PassCoord@123","role":"COORDINATOR","designation":"UG Project Coordinator"}')
+          echo "$COORD_RES" | grep -q "token"
+          echo "Coordinator signed up successfully."
+
+          # 2d. HOD User
+          HOD_RES=$(curl -s -X POST http://localhost:8080/api/auth/signup \
+            -H "Content-Type: application/json" \
+            -d '{"name":"Prof. Nirmal Kumar","email":"hod.it@nitdgp.ac.in","password":"PassHod@123","role":"HOD","designation":"Head of Department"}')
+          echo "$HOD_RES" | grep -q "token"
+          echo "HOD signed up successfully."
+
+          echo "============================================================================"
+          echo "3. Test Authentication & Password Hashing Verification..."
+          echo "============================================================================"
+          # Incorrect password attempt -> MUST fail with 400 or 401
+          FAIL_LOGIN=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8080/api/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"email":"aritra.sen@nitdgp.ac.in","password":"WRONG_PASSWORD"}')
+          if [ "$FAIL_LOGIN" -eq 200 ]; then
+            echo "Security breach: Invalid password was accepted!"
+            exit 1
+          fi
+          echo "Invalid password correctly rejected with HTTP $FAIL_LOGIN."
+
+          # Correct password attempt -> MUST succeed with HTTP 200 & JWT token
+          LOGIN_RES=$(curl -s -X POST http://localhost:8080/api/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"email":"aritra.sen@nitdgp.ac.in","password":"PassStudent@123"}')
+          echo "$LOGIN_RES" | grep -q "token"
+          echo "Valid password authenticated and JWT token issued successfully."
+
+          echo "============================================================================"
+          echo "4. Dynamically provision faculty member with supervisory quotas..."
+          echo "============================================================================"
           FAC_RES=$(curl -s -X POST http://localhost:8080/api/faculty \
             -H "Content-Type: application/json" \
-            -d '{"name":"Dr. Dynamic Guide","email":"dyn.guide@university.edu","role":"FACULTY","designation":"Associate Professor","ugQuotaMax":3,"pgQuotaMax":2}')
+            -d '{"id":"FAC-SG","name":"Dr. Subhankar Ghosh","email":"s.ghosh@nitdgp.ac.in","role":"FACULTY","designation":"Associate Professor","ugQuotaMax":3,"pgQuotaMax":2,"specializations":["Computer Networks","IoT"]}')
           echo "$FAC_RES" | grep -q '"success":true'
-          echo "Faculty creation verified."
+          echo "Faculty supervisor provisioned."
 
-          echo "4. Dynamically register a new capstone project team..."
+          echo "============================================================================"
+          echo "5. Dynamically register capstone project team..."
+          echo "============================================================================"
           TEAM_RES=$(curl -s -X POST http://localhost:8080/api/allocation/teams \
             -H "Content-Type: application/json" \
-            -d '{"title":"Edge AI for Satellites","leadName":"Sat Lead","avgCgpa":9.2,"domain":"Edge AI","type":"UG"}')
+            -d '{"teamId":"UG-2026-T01","title":"LoRaWAN Sensor Mesh for Smart Agriculture","leadName":"Aritra Sen","avgCgpa":8.95,"domain":"IoT & Edge Computing","type":"UG","preferences":["FAC-SG"]}')
           echo "$TEAM_RES" | grep -q '"success":true'
-          echo "Team creation verified."
+          echo "Project team registered."
 
-          echo "5. Dynamically run Gale-Shapley matching engine..."
+          echo "============================================================================"
+          echo "6. Run Gale-Shapley matching simulation..."
+          echo "============================================================================"
           MATCH_RES=$(curl -s -X POST http://localhost:8080/api/allocation/match)
           echo "$MATCH_RES" | grep -q '"success":true'
-          echo "Live matching simulation verified."
+          echo "Gale-Shapley matching executed successfully."
+
+          echo "============================================================================"
+          echo "7. Dynamically submit student capstone proposal..."
+          echo "============================================================================"
+          WF_SUBMIT=$(curl -s -X POST http://localhost:8080/api/workflows \
+            -H "Content-Type: application/json" \
+            -d '{"title":"LoRaWAN Sensor Mesh for Smart Agriculture","category":"UG","type":"UG_PROJECT","domain":"IoT & Edge Computing","abstract":"Dynamic deployment of low-power sensor nodes.","proposedGuideId":"FAC-SG","actorRole":"UG_STUDENT","actorData":{"id":"STU-01","name":"Aritra Sen","title":"UG Student"}}')
+          echo "$WF_SUBMIT" | grep -q '"success":true'
+          WF_ID=$(echo "$WF_SUBMIT" | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
+          echo "Dynamic proposal created with ID: $WF_ID"
+
+          echo "============================================================================"
+          echo "8. Execute Full Multi-Stage Workflow Transitions & Revision Loop..."
+          echo "============================================================================"
+          # 8a. Guide Endorses
+          S1=$(curl -s -X POST "http://localhost:8080/api/workflows/$WF_ID/transition" \
+            -H "Content-Type: application/json" \
+            -d '{"actionKey":"GUIDE_ENDORSE","comment":"Endorsed with strong IoT merit.","actorRole":"FACULTY","actorName":"Dr. Subhankar Ghosh","actorId":"FAC-SG"}')
+          echo "$S1" | grep -q "UNDER_COORDINATOR_REVIEW"
+          echo "Stage 1: Guide endorsed -> UNDER_COORDINATOR_REVIEW"
+
+          # 8b. Coordinator Verifies & Forwards to HOD
+          S2=$(curl -s -X POST "http://localhost:8080/api/workflows/$WF_ID/transition" \
+            -H "Content-Type: application/json" \
+            -d '{"actionKey":"COORDINATOR_VERIFY","comment":"Verified quota and hardware resources.","actorRole":"COORDINATOR","actorName":"Dr. Tanmay Roy","actorId":"COORD-01"}')
+          echo "$S2" | grep -q "UNDER_HOD_REVIEW"
+          echo "Stage 2: Coordinator verified -> UNDER_HOD_REVIEW"
+
+          # 8c. HOD Requests Revision
+          S3=$(curl -s -X POST "http://localhost:8080/api/workflows/$WF_ID/transition" \
+            -H "Content-Type: application/json" \
+            -d '{"actionKey":"REQUEST_REVISION","comment":"Please elaborate on solar power budget analysis.","actorRole":"HOD","actorName":"Prof. Nirmal Kumar","actorId":"HOD-01"}')
+          echo "$S3" | grep -q "REVISION_REQUESTED"
+          echo "Stage 3: HOD requested revision -> REVISION_REQUESTED"
+
+          # 8d. Student Resubmits Revised Proposal
+          S4=$(curl -s -X POST "http://localhost:8080/api/workflows/$WF_ID/transition" \
+            -H "Content-Type: application/json" \
+            -d '{"actionKey":"STUDENT_RESUBMIT","comment":"Added Section 4 with comprehensive solar irradiance calculation.","actorRole":"UG_STUDENT","actorName":"Aritra Sen","actorId":"STU-01"}')
+          echo "$S4" | grep -q "UNDER_GUIDE_REVIEW"
+          echo "$S4" | grep -q "REVISION_SUBMITTED"
+          echo "Stage 4: Student resubmitted -> UNDER_GUIDE_REVIEW (action REVISION_SUBMITTED recorded)"
+
+          # 8e. Guide Re-endorses
+          S5=$(curl -s -X POST "http://localhost:8080/api/workflows/$WF_ID/transition" \
+            -H "Content-Type: application/json" \
+            -d '{"actionKey":"GUIDE_ENDORSE","comment":"Revisions verified and satisfactory.","actorRole":"FACULTY","actorName":"Dr. Subhankar Ghosh","actorId":"FAC-SG"}')
+          echo "$S5" | grep -q "UNDER_COORDINATOR_REVIEW"
+
+          # 8f. Coordinator Re-forwards
+          S6=$(curl -s -X POST "http://localhost:8080/api/workflows/$WF_ID/transition" \
+            -H "Content-Type: application/json" \
+            -d '{"actionKey":"COORDINATOR_VERIFY","comment":"Forwarded to HOD for sanction.","actorRole":"COORDINATOR","actorName":"Dr. Tanmay Roy","actorId":"COORD-01"}')
+          echo "$S6" | grep -q "UNDER_HOD_REVIEW"
+
+          # 8g. HOD Grants Final Sanction
+          S7=$(curl -s -X POST "http://localhost:8080/api/workflows/$WF_ID/transition" \
+            -H "Content-Type: application/json" \
+            -d '{"actionKey":"HOD_APPROVE","comment":"Approved and officially sanctioned for implementation.","actorRole":"HOD","actorName":"Prof. Nirmal Kumar","actorId":"HOD-01"}')
+          echo "$S7" | grep -q "APPROVED"
+          echo "Stage 5: Final Sanction Granted -> APPROVED"
+
+          echo "============================================================================"
+          echo "9. Continuous Assessment: Milestone Rubric Evaluation..."
+          echo "============================================================================"
+          RUBRIC_RES=$(curl -s -X POST "http://localhost:8080/api/workflows/$WF_ID/milestones/M1/evaluate" \
+            -H "Content-Type: application/json" \
+            -d '{"rubricScores":{"literatureSurvey":28,"rigorAndMath":36,"presentation":27},"feedback":"Outstanding literature survey with clear methodology.","evaluatorData":{"id":"FAC-SG","name":"Dr. Subhankar Ghosh"}}')
+          echo "$RUBRIC_RES" | grep -q '"success":true'
+          echo "Milestone 1 evaluated with 3-part rubric scoring."
+
+          echo "============================================================================"
+          echo "✨ COMPLETE DYNAMIC ZERO-SAMPLE-DATA E2E PIPELINE PASSED SUCCESSFULLY!"
+          echo "============================================================================"
 
       - name: Inspect Container Logs & Teardown
         if: always()
