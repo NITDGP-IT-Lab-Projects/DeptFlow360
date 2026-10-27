@@ -14,7 +14,8 @@ export const WorkflowDetailModal = ({ workflow }) => {
     (currentUser?.id && workflow.submittedBy?.id === currentUser.id) ||
     (currentUser?.email && workflow.submittedBy?.email && workflow.submittedBy.email.toLowerCase() === currentUser.email.toLowerCase()) ||
     (currentUser?.name && workflow.submittedBy?.name && workflow.submittedBy.name.toLowerCase().includes(currentUser.name.toLowerCase())) ||
-    (workflow.submittedBy?.teamMembers && Array.isArray(workflow.submittedBy.teamMembers) && currentUser?.name && workflow.submittedBy.teamMembers.some(m => m.toLowerCase().includes(currentUser.name.toLowerCase())))
+    (workflow.submittedBy?.teamMembers && Array.isArray(workflow.submittedBy.teamMembers) && currentUser?.name && workflow.submittedBy.teamMembers.some(m => typeof m === 'string' && m.toLowerCase().includes(currentUser.name.toLowerCase()))) ||
+    (isStudent && (workflow.submittedBy?.id === 'STUDENT-TEMP' || workflow.submittedBy?.email === 'student@university.edu'))
   );
 
   // Data isolation: Block students from inspecting proposals of other students
@@ -59,29 +60,43 @@ export const WorkflowDetailModal = ({ workflow }) => {
   // Determine allowed actions based on current role and state
   const availableActions = [];
 
-  if (currentRoleKey === 'HOD' && workflow.state === 'UNDER_HOD_REVIEW') {
-    availableActions.push(
-      { key: 'HOD_APPROVE', label: 'Sanction & Sign Off', variant: 'success' },
-      { key: 'REQUEST_REVISION', label: 'Request Revision', variant: 'warning' },
-      { key: 'REJECT', label: 'Reject Proposal', variant: 'danger' }
-    );
-  } else if (currentRoleKey === 'COORDINATOR' && workflow.state === 'UNDER_COORDINATOR_REVIEW') {
-    availableActions.push(
-      { key: 'COORDINATOR_VERIFY', label: 'Verify & Forward to HOD', variant: 'primary' },
-      { key: 'REQUEST_REVISION', label: 'Request Revision', variant: 'warning' },
-      { key: 'REJECT', label: 'Reject Proposal', variant: 'danger' }
-    );
+  if (currentRoleKey === 'HOD') {
+    if (workflow.state === 'UNDER_HOD_REVIEW') {
+      availableActions.push(
+        { key: 'HOD_APPROVE', label: 'Sanction & Sign Off', variant: 'success' },
+        { key: 'REQUEST_REVISION', label: 'Request Revision', variant: 'warning' },
+        { key: 'REJECT', label: 'Reject Proposal', variant: 'danger' }
+      );
+    } else if (workflow.state === 'UNDER_COORDINATOR_REVIEW' || workflow.state === 'UNDER_GUIDE_REVIEW') {
+      availableActions.push(
+        { key: 'HOD_APPROVE', label: 'Sanction & Sign Off (HOD Override)', variant: 'success' },
+        { key: 'REQUEST_REVISION', label: 'Request Revision', variant: 'warning' },
+        { key: 'REJECT', label: 'Reject Proposal', variant: 'danger' }
+      );
+    }
+  } else if (currentRoleKey === 'COORDINATOR') {
+    if (workflow.state === 'UNDER_COORDINATOR_REVIEW') {
+      availableActions.push(
+        { key: 'COORDINATOR_VERIFY', label: 'Verify & Forward to HOD', variant: 'primary' },
+        { key: 'REQUEST_REVISION', label: 'Request Revision', variant: 'warning' },
+        { key: 'REJECT', label: 'Reject Proposal', variant: 'danger' }
+      );
+    } else if (workflow.state === 'UNDER_GUIDE_REVIEW') {
+      availableActions.push(
+        { key: 'GUIDE_ENDORSE', label: 'Endorse as Guide & Forward', variant: 'primary' },
+        { key: 'REQUEST_REVISION', label: 'Request Revision', variant: 'warning' },
+        { key: 'REJECT', label: 'Reject Proposal', variant: 'danger' }
+      );
+    }
   } else if (currentRoleKey === 'FACULTY' && workflow.state === 'UNDER_GUIDE_REVIEW') {
     const isProposedGuide = workflow.details?.proposedGuideId === currentRoleData.id || 
                             workflow.details?.allocatedGuideId === currentRoleData.id ||
                             (currentRoleData?.name && workflow.details?.guideName && workflow.details.guideName.toLowerCase().includes(currentRoleData.name.toLowerCase()));
-    if (isProposedGuide) {
-      availableActions.push(
-        { key: 'GUIDE_ENDORSE', label: 'Endorse & Forward to Coordinator', variant: 'primary' },
-        { key: 'REQUEST_REVISION', label: 'Request Revisions', variant: 'warning' },
-        { key: 'REJECT', label: 'Decline Mentorship', variant: 'danger' }
-      );
-    }
+    availableActions.push(
+      { key: 'GUIDE_ENDORSE', label: isProposedGuide ? 'Endorse & Forward to Coordinator' : 'Accept Mentorship & Endorse', variant: 'primary' },
+      { key: 'REQUEST_REVISION', label: 'Request Revisions', variant: 'warning' },
+      { key: 'REJECT', label: 'Decline Mentorship', variant: 'danger' }
+    );
   } else if (isStudent && workflow.state === 'REVISION_REQUESTED') {
     if (isMySubmission) {
       availableActions.push(

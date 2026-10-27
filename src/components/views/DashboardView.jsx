@@ -63,7 +63,7 @@ export const DashboardView = () => {
   // Scoped workflows strictly by authenticated user role
   const scopedWorkflows = workflows.filter(w => {
     if (isHOD || isCoordinator) return true;
-    if (isFaculty) return isMySupervision(w);
+    if (isFaculty) return isMySupervision(w) || w.state === 'UNDER_GUIDE_REVIEW';
     if (isStudent) return isMySubmission(w);
     return false;
   });
@@ -72,10 +72,10 @@ export const DashboardView = () => {
   const totalWorkflows = scopedWorkflows.length;
 
   const pendingActionCount = scopedWorkflows.filter(w => {
-    if (isHOD) return w.state === 'UNDER_HOD_REVIEW' || w.state === 'UNDER_COORDINATOR_REVIEW' || w.state === 'UNDER_GUIDE_REVIEW';
-    if (isCoordinator) return w.state === 'UNDER_COORDINATOR_REVIEW' || w.state === 'UNDER_GUIDE_REVIEW';
+    if (isHOD) return w.state === 'UNDER_HOD_REVIEW';
+    if (isCoordinator) return w.state === 'UNDER_COORDINATOR_REVIEW';
     if (isFaculty) return w.state === 'UNDER_GUIDE_REVIEW';
-    if (isStudent) return w.state === 'REVISION_REQUESTED' || w.state === 'UNDER_GUIDE_REVIEW';
+    if (isStudent) return w.state === 'REVISION_REQUESTED';
     return false;
   }).length;
 

@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
 const Workflow = require('../models/Workflow');
 const Notification = require('../models/Notification');
+const ProjectTeam = require('../models/ProjectTeam');
+const Faculty = require('../models/Faculty');
 
 // Helper to query workflow by either business tracking ID or MongoDB _id
 const findWorkflowById = (id) => {
@@ -37,6 +39,7 @@ exports.getWorkflows = async (req, res) => {
         { 'details.allocatedGuideId': roleId },
         { 'details.proposedGuideId': roleId },
         { 'submittedBy.id': roleId },
+        { state: 'UNDER_GUIDE_REVIEW' },
         { category: 'DEPARTMENTAL' }
       ];
     } else if ((role === 'UG_STUDENT' || role === 'PG_STUDENT') && roleId) {
@@ -126,7 +129,7 @@ exports.createWorkflow = async (req, res) => {
         domain: domain || 'General IT',
         abstract,
         proposedGuideId: proposedGuideId || null,
-        allocatedGuideId: req.body.allocatedGuideId || proposedGuideId || null,
+        allocatedGuideId: (category === 'UG') ? null : (req.body.allocatedGuideId || proposedGuideId || null),
         guideName: req.body.guideName || null,
         purpose: isDirectDept ? abstract : null
       },
@@ -200,7 +203,8 @@ exports.createWorkflow = async (req, res) => {
 // POST /api/workflows/:id/transition - Execute RBAC State Transition
 exports.transitionWorkflow = async (req, res) => {
   try {
-    const actionKey = req.body.actionKey || req.body.action;
+    const rawAction = req.body.actionKey || req.body.action || '';
+    const actionKey = String(rawAction).toUpperCase().trim();
     const comment = req.body.comment || req.body.remarks || '';
     const actorRole = req.body.actorRole || req.body.actorData?.title || req.body.actorData?.role || 'Authority';
     const actorName = req.body.actorName || req.body.actorData?.name || 'Authority';
@@ -218,6 +222,10 @@ exports.transitionWorkflow = async (req, res) => {
     let targetNotifRole = 'STUDENT';
     let notifMessage = '';
 
+    const nowStr = new Date().toLocaleString('en-US', { 
+      year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+    });
+
     switch (actionKey) {
       case 'RESUBMIT':
       case 'STUDENT_RESUBMIT':
@@ -228,13 +236,25 @@ exports.transitionWorkflow = async (req, res) => {
         break;
 
       case 'GUIDE_ENDORSE':
+      case 'GUIDE_APPROVE':
         nextState = 'UNDER_COORDINATOR_REVIEW';
         actionLabel = 'GUIDE_ENDORSED';
         notifMessage = `${actorName} endorsed: ${wf.title}. Awaiting coordinator review.`;
         targetNotifRole = 'COORDINATOR';
+        if (!wf.details) wf.details = {};
+        if (actorId && actorId !== 'SYS') {
+          wf.details.allocatedGuideId = actorId;
+        } else if (!wf.details.allocatedGuideId && wf.details.proposedGuideId) {
+          wf.details.allocatedGuideId = wf.details.proposedGuideId;
+        }
+        if (actorName && actorName !== 'Authority') {
+          wf.details.guideName = actorName;
+        }
         break;
 
       case 'COORDINATOR_VERIFY':
+      case 'COORDINATOR_FORWARD':
+      case 'COORDINATOR_EXPEDITE':
         nextState = 'UNDER_HOD_REVIEW';
         actionLabel = 'COORDINATOR_VERIFIED';
         notifMessage = `Coordinator ${actorName} verified & forwarded: ${wf.title} for HOD sanction.`;
@@ -242,8 +262,11 @@ exports.transitionWorkflow = async (req, res) => {
         break;
 
       case 'HOD_APPROVE':
+      case 'HOD_SANCTION':
         nextState = 'APPROVED';
         actionLabel = 'HOD_SANCTIONED';
+        wf.sanctionDate = nowStr;
+        wf.sanctionLetterUrl = `sanction-${wf.id.toLowerCase()}.pdf`;
         notifMessage = `Official Approval granted by HOD for ${wf.title}. Project workspace active!`;
         targetNotifRole = wf.category === 'UG' ? 'UG_STUDENT' : 'PG_STUDENT';
         break;
@@ -256,6 +279,7 @@ exports.transitionWorkflow = async (req, res) => {
         break;
 
       case 'REJECT':
+      case 'WORKFLOW_REJECTED':
         nextState = 'REJECTED';
         actionLabel = 'WORKFLOW_REJECTED';
         notifMessage = `Workflow rejected for ${wf.title}. Reason: ${comment}`;
@@ -265,10 +289,6 @@ exports.transitionWorkflow = async (req, res) => {
       default:
         return res.status(400).json({ success: false, error: `Unsupported transition: ${actionKey}` });
     }
-
-    const nowStr = new Date().toLocaleString('en-US', { 
-      year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
-    });
 
     wf.state = nextState;
     wf.history.push({
@@ -283,6 +303,39 @@ exports.transitionWorkflow = async (req, res) => {
     });
 
     await wf.save();
+
+    // Sync ProjectTeam status and Faculty Quotas
+    try {
+      if (wf.category === 'UG' || wf.category === 'PG') {
+        if (actionKey === 'GUIDE_ENDORSE' || actionKey === 'GUIDE_APPROVE') {
+          await ProjectTeam.findOneAndUpdate(
+            { workflowId: wf.id },
+            { 
+              allocatedGuideId: wf.details?.allocatedGuideId,
+              status: 'ALLOCATED' 
+            }
+          );
+        } else if (actionKey === 'REJECT' || actionKey === 'WORKFLOW_REJECTED') {
+          await ProjectTeam.findOneAndUpdate(
+            { workflowId: wf.id },
+            { 
+              allocatedGuideId: null,
+              status: 'UNALLOCATED' 
+            }
+          );
+        }
+        
+        // Recalculate faculty current quotas
+        const facultyList = await Faculty.find();
+        for (const f of facultyList) {
+          const ugCurrent = await ProjectTeam.countDocuments({ allocatedGuideId: f.id, type: 'UG' });
+          const pgCurrent = await ProjectTeam.countDocuments({ allocatedGuideId: f.id, type: 'PG' });
+          await Faculty.updateOne({ id: f.id }, { ugQuotaCurrent: ugCurrent, pgQuotaCurrent: pgCurrent });
+        }
+      }
+    } catch (teamSyncErr) {
+      console.warn('ProjectTeam/Faculty quota sync notice:', teamSyncErr.message);
+    }
 
     await Notification.create({
       id: 'NOTIF-' + Date.now(),

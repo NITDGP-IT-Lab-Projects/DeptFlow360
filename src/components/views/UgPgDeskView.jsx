@@ -50,7 +50,7 @@ export const UgPgDeskView = () => {
   const studentWorkflows = workflows.filter(w => {
     if (w.category !== 'UG' && w.category !== 'PG') return false;
     if (isHOD || isCoordinator) return true;
-    if (isFaculty) return isMySupervision(w);
+    if (isFaculty) return isMySupervision(w) || w.state === 'UNDER_GUIDE_REVIEW';
     if (isStudent) return isMySubmission(w);
     return false;
   });

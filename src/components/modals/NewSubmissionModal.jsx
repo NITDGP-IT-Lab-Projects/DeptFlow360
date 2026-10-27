@@ -1,14 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
 
 export const NewSubmissionModal = () => {
   const { closeModal, facultyList, handleCreateWorkflow } = useApp();
 
+  const sortedFaculty = useMemo(() => {
+    return [...facultyList].sort((a, b) => {
+      if (a.role === 'FACULTY' && b.role !== 'FACULTY') return -1;
+      if (b.role === 'FACULTY' && a.role !== 'FACULTY') return 1;
+      return 0;
+    });
+  }, [facultyList]);
+
+  const defaultGuideId = sortedFaculty.find(f => f.role === 'FACULTY')?.id || sortedFaculty[0]?.id || '';
+
   const [category, setCategory] = useState('UG');
   const [type, setType] = useState('UG_PROJECT');
   const [title, setTitle] = useState('');
   const [domain, setDomain] = useState('');
-  const [proposedGuideId, setProposedGuideId] = useState(facultyList[0]?.id || '');
+  const [proposedGuideId, setProposedGuideId] = useState(defaultGuideId);
   const [abstract, setAbstract] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -18,8 +28,8 @@ export const NewSubmissionModal = () => {
 
     setSubmitting(true);
     try {
-      const selectedGuideId = proposedGuideId || (facultyList[0]?.id || null);
-      const guideObj = facultyList.find(f => f.id === selectedGuideId);
+      const selectedGuideId = proposedGuideId || defaultGuideId;
+      const guideObj = sortedFaculty.find(f => f.id === selectedGuideId);
       await handleCreateWorkflow({
         category,
         type,
@@ -125,12 +135,12 @@ export const NewSubmissionModal = () => {
                   value={proposedGuideId}
                   onChange={(e) => setProposedGuideId(e.target.value)}
                 >
-                  {facultyList.length === 0 ? (
+                  {sortedFaculty.length === 0 ? (
                     <option value="">No faculty registered yet (Open Mentor Pool)</option>
                   ) : (
-                    facultyList.map(f => (
+                    sortedFaculty.map(f => (
                       <option key={f.id} value={f.id}>
-                        {f.name} ({f.designation})
+                        {f.name} ({f.designation} - {f.role === 'FACULTY' ? 'Faculty Guide' : f.role})
                       </option>
                     ))
                   )}

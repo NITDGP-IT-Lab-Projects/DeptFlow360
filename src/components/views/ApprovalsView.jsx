@@ -39,7 +39,8 @@ export const ApprovalsView = () => {
         wf.details?.proposedGuideId === currentRoleData?.id || 
         wf.details?.allocatedGuideId === currentRoleData?.id ||
         (currentUser?.name && wf.details?.guideName && wf.details.guideName.toLowerCase().includes(currentUser.name.toLowerCase())) ||
-        (currentRoleData?.name && wf.details?.guideName && wf.details.guideName.toLowerCase().includes(currentRoleData.name.toLowerCase()))
+        (currentRoleData?.name && wf.details?.guideName && wf.details.guideName.toLowerCase().includes(currentRoleData.name.toLowerCase())) ||
+        wf.state === 'UNDER_GUIDE_REVIEW'
       );
     }
     return [];

@@ -159,8 +159,23 @@ export const AppProvider = ({ children }) => {
 
   useEffect(() => {
     syncWithBackend();
-    const interval = setInterval(syncWithBackend, 10000);
-    return () => clearInterval(interval);
+    const interval = setInterval(syncWithBackend, 2500);
+
+    const onFocus = () => syncWithBackend();
+    window.addEventListener('focus', onFocus);
+
+    const onStorage = (e) => {
+      if (e.key === 'DEPTFLOW_WORKFLOWS' || e.key === 'deptflow_WORKFLOWS') {
+        syncWithBackend();
+      }
+    };
+    window.addEventListener('storage', onStorage);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('storage', onStorage);
+    };
   }, [syncWithBackend]);
 
   // --- Authentication Handlers ---
@@ -175,6 +190,7 @@ export const AppProvider = ({ children }) => {
         setCurrentUser(res.user);
         setCurrentRoleKey(res.user.role);
         setAuthModalOpen(false);
+        syncWithBackend();
         addToast('success', 'Sign In Successful', `Authenticated as ${res.user.name} (${res.user.role}) [Backend Synced]`);
         return res.user;
       }
@@ -352,6 +368,8 @@ export const AppProvider = ({ children }) => {
             updatedWf = res.data;
             workflowEngine.updateWorkflow(updatedWf);
             setWorkflows([...workflowEngine.getAll()]);
+            DeptStore.save("WORKFLOWS", workflowEngine.getAll());
+            syncWithBackend();
             addToast("success", "Workflow Updated", `Action ${actionKey} successfully committed to audit ledger.`);
             return updatedWf;
           }
@@ -375,6 +393,7 @@ export const AppProvider = ({ children }) => {
       );
       setWorkflows([...workflowEngine.getAll()]);
       setNotifications([...workflowEngine.notifications]);
+      DeptStore.save("WORKFLOWS", workflowEngine.getAll());
 
       // If backend was thought to be offline, try background sync
       if (!backendOnline) {
@@ -388,6 +407,7 @@ export const AppProvider = ({ children }) => {
             actorName: currentRoleData.name || 'Authority'
           });
           setBackendOnline(true);
+          syncWithBackend();
         } catch {}
       }
 
@@ -397,7 +417,7 @@ export const AppProvider = ({ children }) => {
       addToast("danger", "Transition Failed", err.message);
       throw err;
     }
-  }, [workflowEngine, backendOnline, currentRoleKey, currentRoleData, currentUser, workflows, addToast]);
+  }, [workflowEngine, backendOnline, currentRoleKey, currentRoleData, currentUser, workflows, addToast, syncWithBackend]);
 
   const handleCreateWorkflow = useCallback(async (payload) => {
     try {
@@ -453,6 +473,7 @@ export const AppProvider = ({ children }) => {
           }
         });
         setBackendOnline(true);
+        syncWithBackend();
       } catch (err) {
         console.warn("Express backend create sync error (offline or pending):", err.message);
       }
@@ -463,7 +484,7 @@ export const AppProvider = ({ children }) => {
       addToast("danger", "Submission Error", err.message);
       throw err;
     }
-  }, [workflowEngine, allocationEngine, currentRoleKey, currentRoleData, currentUser, backendOnline, addToast]);
+  }, [workflowEngine, allocationEngine, currentRoleKey, currentRoleData, currentUser, backendOnline, addToast, syncWithBackend]);
 
   const handleAddFaculty = useCallback(async (facultyData) => {
     try {
