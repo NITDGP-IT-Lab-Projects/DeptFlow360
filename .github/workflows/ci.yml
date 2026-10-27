@@ -367,6 +367,52 @@ jobs:
           fi
           echo "Resubmission on APPROVED proposal correctly rejected with HTTP 400."
 
+          # 10k. Test: Coordinator CANNOT endorse on behalf of Guide -> MUST return HTTP 400
+          FRESH_PROP=$(curl -s -X POST http://localhost:8080/api/workflows \
+            -H "Content-Type: application/json" \
+            -d '{"title":"Quantum Key Distribution Network","category":"UG","type":"UG_PROJECT","domain":"Cryptography","abstract":"QKD implementation.","proposedGuideId":"FAC-SG","actorRole":"UG_STUDENT","actorData":{"id":"STU-01","name":"Aritra Sen","title":"UG Student"}}')
+          FRESH_WF_ID=$(echo "$FRESH_PROP" | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
+          
+          COORD_ENDORSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://localhost:8080/api/workflows/$FRESH_WF_ID/transition" \
+            -H "Content-Type: application/json" \
+            -d '{"actionKey":"GUIDE_ENDORSE","comment":"Coordinator attempts to endorse","actorRole":"COORDINATOR","actorName":"Dr. Tanmay Roy","actorId":"COORD-01"}')
+          if [ "$COORD_ENDORSE_CODE" -ne 400 ]; then
+            echo "Expected HTTP 400 for Coordinator attempting GUIDE_ENDORSE, but got $COORD_ENDORSE_CODE!"
+            exit 1
+          fi
+          echo "Coordinator attempting GUIDE_ENDORSE correctly blocked with HTTP 400."
+
+          # 10l. Test: Coordinator CANNOT expedite past Guide review -> MUST return HTTP 400
+          COORD_EXPEDITE_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://localhost:8080/api/workflows/$FRESH_WF_ID/transition" \
+            -H "Content-Type: application/json" \
+            -d '{"actionKey":"COORDINATOR_EXPEDITE","comment":"Coordinator attempts to expedite past guide","actorRole":"COORDINATOR","actorName":"Dr. Tanmay Roy","actorId":"COORD-01"}')
+          if [ "$COORD_EXPEDITE_CODE" -ne 400 ]; then
+            echo "Expected HTTP 400 for Coordinator attempting COORDINATOR_EXPEDITE, but got $COORD_EXPEDITE_CODE!"
+            exit 1
+          fi
+          echo "Coordinator attempting COORDINATOR_EXPEDITE correctly blocked with HTTP 400."
+
+          # 10m. Test: Coordinator CANNOT reject on UNDER_GUIDE_REVIEW -> MUST return HTTP 400
+          COORD_REJECT_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://localhost:8080/api/workflows/$FRESH_WF_ID/transition" \
+            -H "Content-Type: application/json" \
+            -d '{"actionKey":"REJECT","comment":"Coordinator attempts premature reject","actorRole":"COORDINATOR","actorName":"Dr. Tanmay Roy","actorId":"COORD-01"}')
+          if [ "$COORD_REJECT_CODE" -ne 400 ]; then
+            echo "Expected HTTP 400 for Coordinator attempting REJECT on UNDER_GUIDE_REVIEW, but got $COORD_REJECT_CODE!"
+            exit 1
+          fi
+          echo "Coordinator attempting premature REJECT correctly blocked with HTTP 400."
+
+          # 10n. Test: Departmental proposals MUST start in UNDER_GUIDE_REVIEW
+          DEPT_PROP=$(curl -s -X POST http://localhost:8080/api/workflows \
+            -H "Content-Type: application/json" \
+            -d '{"title":"Server Blade Requisition","category":"DEPARTMENTAL","type":"LAB_EQUIPMENT","domain":"Infrastructure","abstract":"Server hardware requisition.","proposedGuideId":"FAC-SG","actorRole":"COORDINATOR","actorData":{"id":"COORD-01","name":"Dr. Tanmay Roy","title":"Project Coordinator"}}')
+          DEPT_STATE=$(echo "$DEPT_PROP" | grep -o '"state":"[^"]*' | head -1 | cut -d'"' -f4)
+          if [ "$DEPT_STATE" != "UNDER_GUIDE_REVIEW" ]; then
+            echo "Expected Departmental request to start in UNDER_GUIDE_REVIEW, but got $DEPT_STATE!"
+            exit 1
+          fi
+          echo "Departmental request created by Coordinator correctly initialized in UNDER_GUIDE_REVIEW."
+
           echo "============================================================================"
           echo "11. Case-Insensitive Workflow ID Resolution & Tracking Verification..."
           echo "============================================================================"

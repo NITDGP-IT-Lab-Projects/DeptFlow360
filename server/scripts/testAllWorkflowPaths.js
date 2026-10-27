@@ -651,6 +651,72 @@ async function runAllWorkflowPathTests() {
   });
   assert(resubmitApproved.status === 400, `Resubmission of APPROVED workflow rejected with HTTP 400 (got: ${resubmitApproved.status})`);
 
+  // 9k. Coordinator attempts GUIDE_ENDORSE on UNDER_GUIDE_REVIEW -> MUST FAIL 400
+  const freshNeg = await request('/workflows', 'POST', {
+    title: 'Negative Test: Guide Endorsement Role Enforcement',
+    category: 'UG',
+    type: 'UG_PROJECT',
+    domain: 'Security',
+    proposedGuideId: guide.id,
+    abstract: 'Verifying that coordinator cannot endorse on behalf of guide.',
+    submittedBy: {
+      id: student.id,
+      name: student.name,
+      email: student.email,
+      degree: 'B.Tech Scholar'
+    }
+  });
+  const freshWf = freshNeg.body.data;
+  assert(freshWf.state === 'UNDER_GUIDE_REVIEW', 'Fresh workflow is in UNDER_GUIDE_REVIEW');
+
+  const coordAttemptGuideEndorse = await request(`/workflows/${freshWf.id}/transition`, 'POST', {
+    actionKey: 'GUIDE_ENDORSE',
+    remarks: 'Coordinator illegally trying to endorse proposal',
+    actorId: coordinator.id,
+    actorName: coordinator.name,
+    actorRole: 'COORDINATOR'
+  });
+  assert(coordAttemptGuideEndorse.status === 400, `Coordinator attempting GUIDE_ENDORSE rejected with HTTP 400 (got: ${coordAttemptGuideEndorse.status})`);
+  assert(coordAttemptGuideEndorse.body.error.includes('Coordinator cannot review or endorse'), `Error contains guide bypass prohibition: "${coordAttemptGuideEndorse.body.error}"`);
+
+  // 9l. Coordinator attempts COORDINATOR_EXPEDITE -> MUST FAIL 400
+  const coordAttemptExpedite = await request(`/workflows/${freshWf.id}/transition`, 'POST', {
+    actionKey: 'COORDINATOR_EXPEDITE',
+    remarks: 'Coordinator attempting to expedite past guide',
+    actorId: coordinator.id,
+    actorName: coordinator.name,
+    actorRole: 'COORDINATOR'
+  });
+  assert(coordAttemptExpedite.status === 400, `Coordinator attempting COORDINATOR_EXPEDITE rejected with HTTP 400 (got: ${coordAttemptExpedite.status})`);
+  assert(coordAttemptExpedite.body.error.includes('Coordinator cannot expedite or bypass'), `Error explains expedite prohibition: "${coordAttemptExpedite.body.error}"`);
+
+  // 9m. Coordinator attempts REJECT on UNDER_GUIDE_REVIEW -> MUST FAIL 400
+  const coordAttemptRejectGuide = await request(`/workflows/${freshWf.id}/transition`, 'POST', {
+    actionKey: 'REJECT',
+    remarks: 'Coordinator attempting to reject proposal in guide review',
+    actorId: coordinator.id,
+    actorName: coordinator.name,
+    actorRole: 'COORDINATOR'
+  });
+  assert(coordAttemptRejectGuide.status === 400, `Coordinator attempting REJECT on UNDER_GUIDE_REVIEW rejected with HTTP 400 (got: ${coordAttemptRejectGuide.status})`);
+
+  // 9n. Request created by Coordinator / Departmental must start in UNDER_GUIDE_REVIEW
+  const deptCreate = await request('/workflows', 'POST', {
+    title: 'Departmental Lab Cluster Requisition',
+    category: 'DEPARTMENTAL',
+    type: 'LAB_EQUIPMENT',
+    domain: 'Compute Infrastructure',
+    proposedGuideId: guide.id,
+    abstract: 'High performance cluster node requisition.',
+    submittedBy: {
+      id: coordinator.id,
+      name: coordinator.name,
+      email: coordinator.email,
+      degree: 'Project Coordinator'
+    }
+  });
+  assert(deptCreate.body.data.state === 'UNDER_GUIDE_REVIEW', `Departmental requisition must start in UNDER_GUIDE_REVIEW (got: ${deptCreate.body.data.state})`);
+
   console.log('\n============================================================================');
   console.log('🎉 ALL 7 WORKFLOW PATHS + NEGATIVE HIERARCHY TESTS PASSED IN ATLAS!');
   console.log('============================================================================');
