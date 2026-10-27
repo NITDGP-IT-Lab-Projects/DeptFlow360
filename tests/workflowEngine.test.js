@@ -194,4 +194,89 @@ describe('WorkflowEngine (Zero-Sample-Data & Dynamic Lifecycle)', () => {
     assert.strictEqual(gradedMilestone.grade, 'O'); // >= 90 is 'O'
     assert.strictEqual(gradedMilestone.evaluator, mockGuide.name);
   });
+
+  it('should strictly enforce sequential review hierarchy (Coordinator blocked before Guide, HOD blocked before Coordinator)', () => {
+    const wf = engine.createWorkflow({
+      category: 'UG',
+      type: 'UG_PROJECT',
+      title: 'Zero-Knowledge Proofs for Verifiable Credentials',
+      domain: 'Cryptography',
+      proposedGuideId: mockGuide.id,
+      guideName: mockGuide.name,
+      abstract: 'zk-SNARKs implementation.'
+    }, 'UG_STUDENT', mockSubmitter);
+
+    assert.strictEqual(wf.state, 'UNDER_GUIDE_REVIEW');
+
+    // 1. Coordinator attempting to verify before Guide review -> MUST THROW
+    assert.throws(() => {
+      engine.transition(wf.id, 'COORDINATOR_VERIFY', 'Premature verification', 'COORDINATOR', mockCoordinator);
+    }, /The coordinator cannot review before the proposal has been reviewed and endorsed by the faculty guide/);
+
+    // 2. HOD attempting to sanction before Guide review -> MUST THROW
+    assert.throws(() => {
+      engine.transition(wf.id, 'HOD_APPROVE', 'Premature HOD sanction', 'HOD', mockHOD);
+    }, /The HOD cannot review or sanction before the proposal has been reviewed by the faculty guide and the coordinator/);
+
+    // 3. HOD attempting to request revision before Guide review -> MUST THROW
+    assert.throws(() => {
+      engine.transition(wf.id, 'REQUEST_REVISION', 'Premature revision', 'HOD', mockHOD);
+    }, /The HOD cannot review before the proposal has been reviewed by the faculty guide and the coordinator/);
+
+    // 4. Guide endorses proposal -> moves to UNDER_COORDINATOR_REVIEW
+    engine.transition(wf.id, 'GUIDE_ENDORSE', 'Endorsed by faculty guide', 'FACULTY', mockGuide);
+    assert.strictEqual(engine.getById(wf.id).state, 'UNDER_COORDINATOR_REVIEW');
+
+    // 5. HOD attempting to sanction before Coordinator review -> MUST THROW
+    assert.throws(() => {
+      engine.transition(wf.id, 'HOD_APPROVE', 'Premature HOD sanction', 'HOD', mockHOD);
+    }, /The HOD cannot review or sanction before the proposal has been verified by the coordinator/);
+
+    // 6. Guide attempting to re-endorse while in UNDER_COORDINATOR_REVIEW -> MUST THROW
+    assert.throws(() => {
+      engine.transition(wf.id, 'GUIDE_ENDORSE', 'Duplicate endorsement', 'FACULTY', mockGuide);
+    }, /Guide endorsement can only be performed when the proposal is under guide review/);
+
+    // 7. Coordinator verifies and forwards -> moves to UNDER_HOD_REVIEW
+    engine.transition(wf.id, 'COORDINATOR_VERIFY', 'Verified quota and hardware resources', 'COORDINATOR', mockCoordinator);
+    assert.strictEqual(engine.getById(wf.id).state, 'UNDER_HOD_REVIEW');
+
+    // 8. HOD sanctions proposal -> moves to APPROVED
+    engine.transition(wf.id, 'HOD_APPROVE', 'Official Sanction Order granted', 'HOD', mockHOD);
+    assert.strictEqual(engine.getById(wf.id).state, 'APPROVED');
+
+    // 9. Re-sanctioning an already APPROVED proposal -> MUST THROW
+    assert.throws(() => {
+      engine.transition(wf.id, 'HOD_APPROVE', 'Re-sanction attempt', 'HOD', mockHOD);
+    }, /This proposal has already received final sanction and approval/);
+
+    // 10. Resubmitting an APPROVED proposal -> MUST THROW
+    assert.throws(() => {
+      engine.transition(wf.id, 'STUDENT_RESUBMIT', 'Resubmit approved proposal', 'UG_STUDENT', mockSubmitter);
+    }, /Resubmission is only allowed when revision has been requested/);
+  });
+
+  it('should find workflows case-insensitively with trimmed IDs in getById', () => {
+    const wf = engine.createWorkflow({
+      category: 'UG',
+      type: 'UG_PROJECT',
+      title: 'Homomorphic Encryption for Distributed Databases',
+      domain: 'Cryptography',
+      proposedGuideId: mockGuide.id,
+      guideName: mockGuide.name,
+      abstract: 'PHE benchmarking.'
+    }, 'UG_STUDENT', mockSubmitter);
+
+    const exact = engine.getById(wf.id);
+    const lower = engine.getById(wf.id.toLowerCase());
+    const upper = engine.getById(wf.id.toUpperCase());
+    const padded = engine.getById(`  ${wf.id}  `);
+
+    assert.ok(exact, 'Exact ID must be found');
+    assert.ok(lower, 'Lowercase ID must match');
+    assert.ok(upper, 'Uppercase ID must match');
+    assert.ok(padded, 'Padded whitespace ID must match');
+    assert.strictEqual(exact.id, lower.id);
+    assert.strictEqual(exact.id, upper.id);
+  });
 });

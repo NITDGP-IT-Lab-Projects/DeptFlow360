@@ -275,6 +275,113 @@ jobs:
           echo "Milestone 1 evaluated with 3-part rubric scoring."
 
           echo "============================================================================"
+          echo "10. Sequential Review Hierarchy Enforcement (Negative Testing via Nginx)..."
+          echo "============================================================================"
+          # 10a. Submit a fresh proposal for hierarchy negative tests
+          NEG_SUBMIT=$(curl -s -X POST http://localhost:8080/api/workflows \
+            -H "Content-Type: application/json" \
+            -d '{"title":"Post-Quantum Lattice Signature Scheme","category":"UG","type":"UG_PROJECT","domain":"Cryptography","abstract":"Implementation of Dilithium.","proposedGuideId":"FAC-SG","actorRole":"UG_STUDENT","actorData":{"id":"STU-01","name":"Aritra Sen","title":"UG Student"}}')
+          echo "NegSubmit Response: $NEG_SUBMIT"
+          echo "$NEG_SUBMIT" | grep -q '"success":true'
+          NEG_WF_ID=$(echo "$NEG_SUBMIT" | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
+          echo "Hierarchy test proposal created with ID: $NEG_WF_ID"
+
+          # 10b. Test: Coordinator CANNOT review before Guide endorses -> MUST return HTTP 400
+          COORD_PREMATURE_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://localhost:8080/api/workflows/$NEG_WF_ID/transition" \
+            -H "Content-Type: application/json" \
+            -d '{"actionKey":"COORDINATOR_VERIFY","comment":"Premature coordinator review","actorRole":"COORDINATOR","actorName":"Dr. Tanmay Roy","actorId":"COORD-01"}')
+          if [ "$COORD_PREMATURE_CODE" -ne 400 ]; then
+            echo "Expected HTTP 400 for Coordinator premature review, but got $COORD_PREMATURE_CODE!"
+            exit 1
+          fi
+          echo "Coordinator premature review correctly blocked with HTTP 400."
+
+          # 10c. Test: HOD CANNOT review before Guide and Coordinator review -> MUST return HTTP 400
+          HOD_PREMATURE_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://localhost:8080/api/workflows/$NEG_WF_ID/transition" \
+            -H "Content-Type: application/json" \
+            -d '{"actionKey":"HOD_APPROVE","comment":"Premature HOD sanction","actorRole":"HOD","actorName":"Prof. Nirmal Kumar","actorId":"HOD-01"}')
+          if [ "$HOD_PREMATURE_CODE" -ne 400 ]; then
+            echo "Expected HTTP 400 for HOD premature sanction, but got $HOD_PREMATURE_CODE!"
+            exit 1
+          fi
+          echo "HOD premature sanction on UNDER_GUIDE_REVIEW correctly blocked with HTTP 400."
+
+          # 10d. Test: HOD CANNOT request revision before Guide and Coordinator review -> MUST return HTTP 400
+          HOD_PREMATURE_REV_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://localhost:8080/api/workflows/$NEG_WF_ID/transition" \
+            -H "Content-Type: application/json" \
+            -d '{"actionKey":"REQUEST_REVISION","comment":"Premature HOD revision request","actorRole":"HOD","actorName":"Prof. Nirmal Kumar","actorId":"HOD-01"}')
+          if [ "$HOD_PREMATURE_REV_CODE" -ne 400 ]; then
+            echo "Expected HTTP 400 for HOD premature revision request, but got $HOD_PREMATURE_REV_CODE!"
+            exit 1
+          fi
+          echo "HOD premature revision request correctly blocked with HTTP 400."
+
+          # 10e. Guide legitimately endorses proposal -> moves to UNDER_COORDINATOR_REVIEW
+          GUIDE_LEGIT_RES=$(curl -s -X POST "http://localhost:8080/api/workflows/$NEG_WF_ID/transition" \
+            -H "Content-Type: application/json" \
+            -d '{"actionKey":"GUIDE_ENDORSE","comment":"Endorsed by faculty guide.","actorRole":"FACULTY","actorName":"Dr. Subhankar Ghosh","actorId":"FAC-SG"}')
+          echo "$GUIDE_LEGIT_RES" | grep -q "UNDER_COORDINATOR_REVIEW"
+          echo "Guide legitimately endorsed -> proposal is now in UNDER_COORDINATOR_REVIEW."
+
+          # 10f. Test: HOD CANNOT review before Coordinator verification -> MUST return HTTP 400
+          HOD_PREMATURE_COORD_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://localhost:8080/api/workflows/$NEG_WF_ID/transition" \
+            -H "Content-Type: application/json" \
+            -d '{"actionKey":"HOD_APPROVE","comment":"Premature HOD sanction before coordinator","actorRole":"HOD","actorName":"Prof. Nirmal Kumar","actorId":"HOD-01"}')
+          if [ "$HOD_PREMATURE_COORD_CODE" -ne 400 ]; then
+            echo "Expected HTTP 400 for HOD premature sanction before Coordinator verification, but got $HOD_PREMATURE_COORD_CODE!"
+            exit 1
+          fi
+          echo "HOD premature sanction on UNDER_COORDINATOR_REVIEW correctly blocked with HTTP 400."
+
+          # 10g. Coordinator legitimately verifies -> moves to UNDER_HOD_REVIEW
+          COORD_LEGIT_RES=$(curl -s -X POST "http://localhost:8080/api/workflows/$NEG_WF_ID/transition" \
+            -H "Content-Type: application/json" \
+            -d '{"actionKey":"COORDINATOR_VERIFY","comment":"Verified quotas and academic merit.","actorRole":"COORDINATOR","actorName":"Dr. Tanmay Roy","actorId":"COORD-01"}')
+          echo "$COORD_LEGIT_RES" | grep -q "UNDER_HOD_REVIEW"
+          echo "Coordinator legitimately verified -> proposal is now in UNDER_HOD_REVIEW."
+
+          # 10h. HOD legitimately sanctions -> moves to APPROVED
+          HOD_LEGIT_RES=$(curl -s -X POST "http://localhost:8080/api/workflows/$NEG_WF_ID/transition" \
+            -H "Content-Type: application/json" \
+            -d '{"actionKey":"HOD_APPROVE","comment":"Final HOD sanction approved.","actorRole":"HOD","actorName":"Prof. Nirmal Kumar","actorId":"HOD-01"}')
+          echo "$HOD_LEGIT_RES" | grep -q "APPROVED"
+          echo "HOD legitimately sanctioned -> proposal is now APPROVED."
+
+          # 10i. Test: Re-sanctioning an already APPROVED proposal -> MUST return HTTP 400
+          RE_SANCTION_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://localhost:8080/api/workflows/$NEG_WF_ID/transition" \
+            -H "Content-Type: application/json" \
+            -d '{"actionKey":"HOD_APPROVE","comment":"Re-sanction attempt","actorRole":"HOD","actorName":"Prof. Nirmal Kumar","actorId":"HOD-01"}')
+          if [ "$RE_SANCTION_CODE" -ne 400 ]; then
+            echo "Expected HTTP 400 for re-sanction of APPROVED proposal, but got $RE_SANCTION_CODE!"
+            exit 1
+          fi
+          echo "Re-sanction of APPROVED proposal correctly rejected with HTTP 400."
+
+          # 10j. Test: Resubmission on an APPROVED proposal -> MUST return HTTP 400
+          RESUBMIT_APPROVED_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://localhost:8080/api/workflows/$NEG_WF_ID/transition" \
+            -H "Content-Type: application/json" \
+            -d '{"actionKey":"STUDENT_RESUBMIT","comment":"Attempt resubmission of approved proposal","actorRole":"UG_STUDENT","actorName":"Aritra Sen","actorId":"STU-01"}')
+          if [ "$RESUBMIT_APPROVED_CODE" -ne 400 ]; then
+            echo "Expected HTTP 400 for resubmission on APPROVED proposal, but got $RESUBMIT_APPROVED_CODE!"
+            exit 1
+          fi
+          echo "Resubmission on APPROVED proposal correctly rejected with HTTP 400."
+
+          echo "============================================================================"
+          echo "11. Case-Insensitive Workflow ID Resolution & Tracking Verification..."
+          echo "============================================================================"
+          LOWER_WF_ID=$(echo "$NEG_WF_ID" | tr '[:upper:]' '[:lower:]')
+          CASE_RES=$(curl -s "http://localhost:8080/api/workflows/$LOWER_WF_ID")
+          echo "$CASE_RES" | grep -q '"success":true'
+          echo "$CASE_RES" | grep -q "$NEG_WF_ID"
+          echo "Case-insensitive lookup for lowercase ID '$LOWER_WF_ID' successfully resolved to '$NEG_WF_ID'."
+
+          echo "============================================================================"
+          echo "12. Executing Automated Multi-Path End-to-End Test Suite in Node..."
+          echo "============================================================================"
+          node server/scripts/testAllWorkflowPaths.js
+
+          echo "============================================================================"
           echo "✨ COMPLETE DYNAMIC ZERO-SAMPLE-DATA E2E PIPELINE PASSED SUCCESSFULLY!"
           echo "============================================================================"
 

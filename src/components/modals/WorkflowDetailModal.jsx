@@ -73,6 +73,7 @@ export const WorkflowDetailModal = ({ workflow }) => {
 
   // Determine allowed actions based on current role and state
   const availableActions = [];
+  let hierarchyLockoutMessage = null;
 
   if (currentRoleKey === 'HOD') {
     if (workflow.state === 'UNDER_HOD_REVIEW') {
@@ -81,12 +82,10 @@ export const WorkflowDetailModal = ({ workflow }) => {
         { key: 'REQUEST_REVISION', label: 'Request Revision', variant: 'warning' },
         { key: 'REJECT', label: 'Reject Proposal', variant: 'danger' }
       );
-    } else if (workflow.state === 'UNDER_COORDINATOR_REVIEW' || workflow.state === 'UNDER_GUIDE_REVIEW') {
-      availableActions.push(
-        { key: 'HOD_APPROVE', label: 'Sanction & Sign Off (HOD Override)', variant: 'success' },
-        { key: 'REQUEST_REVISION', label: 'Request Revision', variant: 'warning' },
-        { key: 'REJECT', label: 'Reject Proposal', variant: 'danger' }
-      );
+    } else if (workflow.state === 'UNDER_GUIDE_REVIEW') {
+      hierarchyLockoutMessage = 'Awaiting Tier-1 Faculty Guide Review: The HOD cannot review or sanction before the proposal is reviewed and endorsed by the faculty guide and coordinator.';
+    } else if (workflow.state === 'UNDER_COORDINATOR_REVIEW') {
+      hierarchyLockoutMessage = 'Awaiting Tier-2 Coordinator Verification: The HOD cannot review or sanction before the proposal has been verified and forwarded by the project coordinator.';
     }
   } else if (currentRoleKey === 'COORDINATOR') {
     if (workflow.state === 'UNDER_COORDINATOR_REVIEW') {
@@ -96,11 +95,7 @@ export const WorkflowDetailModal = ({ workflow }) => {
         { key: 'REJECT', label: 'Reject Proposal', variant: 'danger' }
       );
     } else if (workflow.state === 'UNDER_GUIDE_REVIEW') {
-      availableActions.push(
-        { key: 'GUIDE_ENDORSE', label: 'Endorse as Guide & Forward', variant: 'primary' },
-        { key: 'REQUEST_REVISION', label: 'Request Revision', variant: 'warning' },
-        { key: 'REJECT', label: 'Reject Proposal', variant: 'danger' }
-      );
+      hierarchyLockoutMessage = 'Awaiting Tier-1 Faculty Guide Review: The coordinator cannot review or forward before the proposal is reviewed and endorsed by the designated faculty guide.';
     }
   } else if (currentRoleKey === 'FACULTY' && workflow.state === 'UNDER_GUIDE_REVIEW') {
     const isProposedGuide = workflow.details?.proposedGuideId === currentRoleData.id || 
@@ -111,6 +106,8 @@ export const WorkflowDetailModal = ({ workflow }) => {
       { key: 'REQUEST_REVISION', label: 'Request Revisions', variant: 'warning' },
       { key: 'REJECT', label: 'Decline Mentorship', variant: 'danger' }
     );
+  } else if (currentRoleKey === 'FACULTY' && (workflow.state === 'UNDER_COORDINATOR_REVIEW' || workflow.state === 'UNDER_HOD_REVIEW')) {
+    hierarchyLockoutMessage = 'Proposal has been endorsed and is currently undergoing administrative verification by the project coordinator / HOD.';
   } else if (isStudent && workflow.state === 'REVISION_REQUESTED') {
     if (isMySubmission) {
       availableActions.push(
@@ -453,6 +450,30 @@ export const WorkflowDetailModal = ({ workflow }) => {
                   ))}
                 </div>
               </div>
+
+              {/* Sequential Review Hierarchy Lockout Alert */}
+              {hierarchyLockoutMessage && (
+                <div style={{
+                  marginTop: '1rem',
+                  background: '#fffbeb',
+                  border: '1px solid #fde68a',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '0.85rem 1rem',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.75rem'
+                }}>
+                  <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>⏳</span>
+                  <div>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#92400e' }}>
+                      Sequential Review Clearance Locked
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#b45309', marginTop: '2px', lineHeight: 1.4 }}>
+                      {hierarchyLockoutMessage}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Contextual Action Controls based on Role */}
               {availableActions.length > 0 && (

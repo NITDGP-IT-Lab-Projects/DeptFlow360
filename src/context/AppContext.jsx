@@ -375,7 +375,13 @@ export const AppProvider = ({ children }) => {
             return updatedWf;
           }
         } catch (apiErr) {
-          console.warn("Backend API transition error, attempting local engine fallback:", apiErr.message);
+          // When backend is online and returns a business rule error or HTTP error, rethrow it directly so the user sees the real reason
+          const msg = apiErr.message || '';
+          const isNetworkFail = msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('aborted');
+          if (!isNetworkFail) {
+            throw apiErr;
+          }
+          console.warn("Backend API network failure, attempting local engine fallback:", apiErr.message);
         }
       }
 
