@@ -143,22 +143,29 @@ jobs:
           echo "============================================================================"
           echo "3. Test Authentication & Password Hashing Verification..."
           echo "============================================================================"
-          # Incorrect password attempt -> MUST fail with 400 or 401
-          FAIL_LOGIN=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8080/api/auth/login \
+          # Incorrect password attempt -> MUST fail with 401 Unauthorized
+          FAIL_LOGIN=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8080/api/auth/signin \
             -H "Content-Type: application/json" \
             -d '{"email":"aritra.sen@nitdgp.ac.in","password":"WRONG_PASSWORD"}')
-          if [ "$FAIL_LOGIN" -eq 200 ]; then
-            echo "Security breach: Invalid password was accepted!"
+          if [ "$FAIL_LOGIN" -ne 401 ]; then
+            echo "Expected HTTP 401 for invalid credentials, but got $FAIL_LOGIN!"
             exit 1
           fi
-          echo "Invalid password correctly rejected with HTTP $FAIL_LOGIN."
+          echo "Invalid password correctly rejected with HTTP 401."
 
           # Correct password attempt -> MUST succeed with HTTP 200 & JWT token
-          LOGIN_RES=$(curl -s -X POST http://localhost:8080/api/auth/login \
+          LOGIN_RES=$(curl -s -X POST http://localhost:8080/api/auth/signin \
             -H "Content-Type: application/json" \
             -d '{"email":"aritra.sen@nitdgp.ac.in","password":"PassStudent@123"}')
           echo "$LOGIN_RES" | grep -q "token"
-          echo "Valid password authenticated and JWT token issued successfully."
+          echo "Valid password authenticated and JWT token issued successfully via /signin."
+
+          # Verify /login endpoint alias also works seamlessly
+          LOGIN_ALIAS_RES=$(curl -s -X POST http://localhost:8080/api/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"email":"aritra.sen@nitdgp.ac.in","password":"PassStudent@123"}')
+          echo "$LOGIN_ALIAS_RES" | grep -q "token"
+          echo "Valid password authenticated via /login alias as well."
 
           echo "============================================================================"
           echo "4. Dynamically provision faculty member with supervisory quotas..."
