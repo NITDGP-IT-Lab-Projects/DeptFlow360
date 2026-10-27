@@ -12,7 +12,7 @@ import {
 } from '../icons/Icons.jsx';
 
 export const ApprovalsView = () => {
-  const { workflows, currentRoleKey, currentRoleData, currentUser, openModal, setActiveView } = useApp();
+  const { workflows, facultyList, currentRoleKey, currentRoleData, currentUser, openModal, setActiveView } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('ALL');
 
@@ -21,18 +21,29 @@ export const ApprovalsView = () => {
   const isCoordinator = currentRoleKey === 'COORDINATOR';
   const isHOD = currentRoleKey === 'HOD';
 
+  const myFacultyRecord = facultyList?.find(f => 
+    f.id === currentRoleData?.id || 
+    f.id === currentUser?.referenceId ||
+    f.name === currentRoleData?.name ||
+    f.email === currentUser?.email
+  );
+  const activeFacultyId = myFacultyRecord?.id || currentUser?.referenceId || currentRoleData?.id;
+
   // Base pool of workflows strictly isolated by reviewer role
   const baseWorkflows = useMemo(() => {
     if (isHOD || isCoordinator) return workflows;
     if (isFaculty) {
       return workflows.filter(wf => 
+        wf.details?.proposedGuideId === activeFacultyId || 
+        wf.details?.allocatedGuideId === activeFacultyId ||
         wf.details?.proposedGuideId === currentRoleData?.id || 
         wf.details?.allocatedGuideId === currentRoleData?.id ||
+        (currentUser?.name && wf.details?.guideName && wf.details.guideName.toLowerCase().includes(currentUser.name.toLowerCase())) ||
         (currentRoleData?.name && wf.details?.guideName && wf.details.guideName.toLowerCase().includes(currentRoleData.name.toLowerCase()))
       );
     }
     return [];
-  }, [workflows, isHOD, isCoordinator, isFaculty, currentRoleData]);
+  }, [workflows, isHOD, isCoordinator, isFaculty, currentRoleData, currentUser, activeFacultyId]);
 
   const filteredWorkflows = useMemo(() => {
     return baseWorkflows.filter(wf => {

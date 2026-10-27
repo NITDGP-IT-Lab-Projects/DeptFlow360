@@ -9,7 +9,7 @@ import {
 } from '../icons/Icons.jsx';
 
 export const RubricEvalView = () => {
-  const { workflows, openModal, currentRoleKey, currentRoleData, setActiveView } = useApp();
+  const { workflows, facultyList, openModal, currentRoleKey, currentRoleData, currentUser, setActiveView } = useApp();
 
   const isStudent = currentRoleKey === 'UG_STUDENT' || currentRoleKey === 'PG_STUDENT';
   const isFaculty = currentRoleKey === 'FACULTY';
@@ -18,14 +18,25 @@ export const RubricEvalView = () => {
 
   const canGrade = isFaculty || isCoordinator || isHOD;
 
+  const myFacultyRecord = facultyList?.find(f => 
+    f.id === currentRoleData?.id || 
+    f.id === currentUser?.referenceId ||
+    f.name === currentRoleData?.name ||
+    f.email === currentUser?.email
+  );
+  const activeFacultyId = myFacultyRecord?.id || currentUser?.referenceId || currentRoleData?.id;
+
   // Evaluatable workflows strictly scoped to supervisor or departmental coordinators
   const evaluatableWorkflows = workflows.filter(w => {
     if (!w.milestones || w.milestones.length === 0) return false;
     if (isHOD || isCoordinator) return true;
     if (isFaculty) {
       return (
+        w.details?.allocatedGuideId === activeFacultyId ||
+        w.details?.proposedGuideId === activeFacultyId ||
         w.details?.allocatedGuideId === currentRoleData?.id ||
         w.details?.proposedGuideId === currentRoleData?.id ||
+        (currentUser?.name && w.details?.guideName && w.details.guideName.toLowerCase().includes(currentUser.name.toLowerCase())) ||
         (currentRoleData?.name && w.details?.guideName && w.details.guideName.toLowerCase().includes(currentRoleData.name.toLowerCase()))
       );
     }

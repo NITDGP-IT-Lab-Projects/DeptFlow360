@@ -27,21 +27,36 @@ export const DashboardView = () => {
   const isCoordinator = currentRoleKey === 'COORDINATOR';
   const isHOD = currentRoleKey === 'HOD';
 
+  // Faculty specific quota metrics
+  const myFacultyRecord = facultyList.find(f => 
+    f.id === currentRoleData?.id || 
+    f.id === currentUser?.referenceId ||
+    f.name === currentRoleData?.name ||
+    f.email === currentUser?.email
+  );
+  const activeFacultyId = myFacultyRecord?.id || currentUser?.referenceId || currentRoleData?.id;
+
   // Helper to verify if workflow belongs to the authenticated user
   const isMySubmission = (w) => {
     if (!w || !w.submittedBy) return false;
     if (currentUser?.email && w.submittedBy.email && w.submittedBy.email.toLowerCase() === currentUser.email.toLowerCase()) return true;
     if (currentUser?.name && w.submittedBy.name && w.submittedBy.name.toLowerCase() === currentUser.name.toLowerCase()) return true;
-    if (currentRoleData?.id && w.submittedBy.id === currentRoleData.id) return true;
+    if (currentRoleData?.id && (w.submittedBy.id === currentRoleData.id || w.submittedBy.id === currentUser?.referenceId)) return true;
+    if (w.submittedBy.teamMembers && Array.isArray(w.submittedBy.teamMembers)) {
+      if (currentUser?.name && w.submittedBy.teamMembers.some(m => typeof m === 'string' && m.toLowerCase().includes(currentUser.name.toLowerCase()))) return true;
+    }
+    // Fallback: If workflow was submitted with generic student placeholder, make it visible to student accounts
+    if (isStudent && (w.submittedBy.id === 'STUDENT-TEMP' || w.submittedBy.email === 'student@university.edu')) return true;
     return false;
   };
 
   // Helper to verify if workflow is supervised by current faculty member
   const isMySupervision = (w) => {
     if (!w || !w.details) return false;
-    if (w.details.allocatedGuideId && (w.details.allocatedGuideId === currentRoleData?.id || w.details.allocatedGuideId === currentUser?.id)) return true;
-    if (w.details.proposedGuideId && (w.details.proposedGuideId === currentRoleData?.id || w.details.proposedGuideId === currentUser?.id)) return true;
+    if (w.details.allocatedGuideId && (w.details.allocatedGuideId === activeFacultyId || w.details.allocatedGuideId === currentRoleData?.id || w.details.allocatedGuideId === currentUser?.id)) return true;
+    if (w.details.proposedGuideId && (w.details.proposedGuideId === activeFacultyId || w.details.proposedGuideId === currentRoleData?.id || w.details.proposedGuideId === currentUser?.id)) return true;
     if (currentRoleData?.name && w.details.guideName && w.details.guideName.toLowerCase().includes(currentRoleData.name.toLowerCase())) return true;
+    if (currentUser?.name && w.details.guideName && w.details.guideName.toLowerCase().includes(currentUser.name.toLowerCase())) return true;
     return false;
   };
 
@@ -57,21 +72,14 @@ export const DashboardView = () => {
   const totalWorkflows = scopedWorkflows.length;
 
   const pendingActionCount = scopedWorkflows.filter(w => {
-    if (isHOD) return w.state === 'UNDER_HOD_REVIEW';
-    if (isCoordinator) return w.state === 'UNDER_COORDINATOR_REVIEW';
+    if (isHOD) return w.state === 'UNDER_HOD_REVIEW' || w.state === 'UNDER_COORDINATOR_REVIEW' || w.state === 'UNDER_GUIDE_REVIEW';
+    if (isCoordinator) return w.state === 'UNDER_COORDINATOR_REVIEW' || w.state === 'UNDER_GUIDE_REVIEW';
     if (isFaculty) return w.state === 'UNDER_GUIDE_REVIEW';
-    if (isStudent) return w.state === 'REVISION_REQUESTED';
+    if (isStudent) return w.state === 'REVISION_REQUESTED' || w.state === 'UNDER_GUIDE_REVIEW';
     return false;
   }).length;
 
   const approvedCount = scopedWorkflows.filter(w => w.state === 'APPROVED').length;
-
-  // Faculty specific quota metrics
-  const myFacultyRecord = facultyList.find(f => 
-    f.id === currentRoleData?.id || 
-    f.name === currentRoleData?.name ||
-    f.email === currentUser?.email
-  );
 
   // Department-wide Quota load
   const totalMaxQuota = facultyList.reduce((acc, f) => acc + (f.ugQuotaMax || 0) + (f.pgQuotaMax || 0), 0);

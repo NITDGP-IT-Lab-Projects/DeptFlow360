@@ -101,18 +101,26 @@ exports.createWorkflow = async (req, res) => {
     const isDirectDept = (category === 'DEPARTMENTAL');
     const initialState = isDirectDept ? 'UNDER_COORDINATOR_REVIEW' : 'UNDER_GUIDE_REVIEW';
 
+    const submitter = req.body.submittedBy || actorData || {};
+    const submitterName = (submitter.name || actorData?.name || 'Student Candidate').trim();
+    const submitterEmail = (submitter.email || actorData?.email || `${submitterName.toLowerCase().replace(/\s+/g, '.')}@university.edu`).trim().toLowerCase();
+    const submitterId = submitter.id || actorData?.id || 'STUDENT-TEMP';
+    const submitterRollNo = submitter.rollNo || actorData?.rollNo || 'N/A';
+    const submitterDegree = submitter.degree || actorData?.title || 'Student';
+    const submitterTeam = submitter.teamMembers || req.body.teamMembers || [submitterName];
+
     const newWorkflow = new Workflow({
       id: newId,
       type: type || 'UG_PROJECT',
       title,
       category: category || 'UG',
       submittedBy: {
-        id: actorData?.id || 'STUDENT-TEMP',
-        name: actorData?.name || 'Student Candidate',
-        rollNo: actorData?.rollNo || 'N/A',
-        email: actorData?.email || `${(actorData?.name || 'student').toLowerCase().replace(/\s+/g, '.')}@university.edu`,
-        degree: actorData?.title || 'Student',
-        teamMembers: req.body.teamMembers || [actorData?.name || 'Student Candidate']
+        id: submitterId,
+        name: submitterName,
+        rollNo: submitterRollNo,
+        email: submitterEmail,
+        degree: submitterDegree,
+        teamMembers: submitterTeam
       },
       details: {
         domain: domain || 'General IT',
@@ -127,9 +135,9 @@ exports.createWorkflow = async (req, res) => {
       history: [
         {
           timestamp: nowStr,
-          actorId: actorData?.id || 'SYS',
-          actorName: actorData?.name || 'Submitter',
-          actorRole: actorData?.title || actorRole || 'Student',
+          actorId: submitterId,
+          actorName: submitterName,
+          actorRole: actorRole || submitterDegree || 'Student',
           action: 'SUBMITTED',
           comment: req.body.initialRemarks || 'Initial online proposal submitted through DAWMS portal.',
           statusFrom: 'DRAFT',
