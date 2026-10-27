@@ -1,6 +1,28 @@
 const http = require('http');
 
-const API_BASE = 'http://localhost:5000/api';
+let API_BASE = process.env.API_BASE || 'http://localhost:8080/api';
+
+const pingEndpoint = (url) => {
+  return new Promise((resolve) => {
+    try {
+      const u = new URL(url + '/health');
+      const req = http.request({
+        hostname: u.hostname,
+        port: u.port,
+        path: u.pathname,
+        method: 'GET',
+        timeout: 2000
+      }, (res) => {
+        resolve(res.statusCode === 200);
+      });
+      req.on('error', () => resolve(false));
+      req.on('timeout', () => { req.destroy(); resolve(false); });
+      req.end();
+    } catch {
+      resolve(false);
+    }
+  });
+};
 
 const request = (path, method = 'GET', body = null, token = null) => {
   return new Promise((resolve, reject) => {
@@ -48,40 +70,87 @@ const assert = (condition, message) => {
   }
 };
 
+async function authenticateOrSignup(name, email, password, role, designation) {
+  // 1. Try to sign in first
+  const signinRes = await request('/auth/signin', 'POST', { email, password });
+  if (signinRes.status === 200 && signinRes.body && signinRes.body.success) {
+    return signinRes.body.user;
+  }
+
+  // 2. If not found or failed, register dynamically
+  const signupRes = await request('/auth/signup', 'POST', {
+    name,
+    email,
+    password,
+    role,
+    designation
+  });
+  if (signupRes.status === 201 && signupRes.body && signupRes.body.success) {
+    return signupRes.body.user;
+  }
+
+  // 3. If signup reported account already exists (e.g. 409 Conflict), try signin again
+  const retryRes = await request('/auth/signin', 'POST', { email, password });
+  if (retryRes.status === 200 && retryRes.body && retryRes.body.success) {
+    return retryRes.body.user;
+  }
+
+  throw new Error(`Failed to authenticate or register ${role} (${email}): signin=${signinRes.status}, signup=${signupRes.status}`);
+}
+
 async function runAllWorkflowPathTests() {
   console.log('============================================================================');
   console.log('STARTING AUTOMATED END-TO-END WORKFLOW RBAC PATH TESTING');
   console.log('============================================================================');
 
-  // 1. Authenticate All Actors
+  // Auto-detect responsive API endpoint if not explicitly provided
+  if (!process.env.API_BASE) {
+    const canReach8080 = await pingEndpoint('http://localhost:8080/api');
+    if (canReach8080) {
+      API_BASE = 'http://localhost:8080/api';
+    } else {
+      API_BASE = 'http://localhost:5000/api';
+    }
+  }
+  console.log(`Targeting API Base: ${API_BASE}`);
+
+  // 1. Authenticate / Dynamically Provision All Actors
   console.log('\n--- Step 1: Authenticating All 4 Role Actors ---');
-  const studentAuth = await request('/auth/signin', 'POST', {
-    email: 'team04.lead@university.edu',
-    password: 'Student@123'
-  });
-  assert(studentAuth.status === 200 && studentAuth.body.success, 'Student authenticated');
-  const student = studentAuth.body.user;
+  const student = await authenticateOrSignup(
+    'Aritra Sen',
+    'aritra.sen@nitdgp.ac.in',
+    'PassStudent@123',
+    'UG_STUDENT',
+    'B.Tech Scholar'
+  );
+  assert(student && student.id, 'Student authenticated');
 
-  const guideAuth = await request('/auth/signin', 'POST', {
-    email: 'vikram.das@university.edu',
-    password: 'Guide@123'
-  });
-  assert(guideAuth.status === 200 && guideAuth.body.success, 'Faculty Guide authenticated');
-  const guide = guideAuth.body.user;
+  const guide = await authenticateOrSignup(
+    'Dr. Subhankar Ghosh',
+    's.ghosh@nitdgp.ac.in',
+    'PassGuide@123',
+    'FACULTY',
+    'Associate Professor'
+  );
+  assert(guide && guide.id, 'Faculty Guide authenticated');
 
-  const coordAuth = await request('/auth/signin', 'POST', {
-    email: 'ananya.roy@university.edu',
-    password: 'Coord@123'
-  });
-  assert(coordAuth.status === 200 && coordAuth.body.success, 'Coordinator authenticated');
-  const coordinator = coordAuth.body.user;
+  const coordinator = await authenticateOrSignup(
+    'Dr. Tanmay Roy',
+    't.roy@nitdgp.ac.in',
+    'PassCoord@123',
+    'COORDINATOR',
+    'UG Project Coordinator'
+  );
+  assert(coordinator && coordinator.id, 'Coordinator authenticated');
 
-  const hodAuth = await request('/auth/signin', 'POST', {
-    email: 'hod.it@university.edu',
-    password: 'Admin@123'
-  });
-  assert(hodAuth.status === 200 && hodAuth.body.success, 'HOD authenticated');
-  const hod = hodAuth.body.user;
+  const hod = await authenticateOrSignup(
+    'Prof. Nirmal Kumar',
+    'hod.it@nitdgp.ac.in',
+    'PassHod@123',
+    'HOD',
+    'Head of Department'
+  );
+  assert(hod && hod.id, 'HOD authenticated');
 
   // ============================================================================
   // PATH 1: Full Happy Path
@@ -455,8 +524,135 @@ async function runAllWorkflowPathTests() {
   const allUnderGuide = guideWfs.filter(w => w.state === 'UNDER_GUIDE_REVIEW');
   assert(allUnderGuide.length > 0, `Guide has ${allUnderGuide.length} proposals visible in UNDER_GUIDE_REVIEW`);
 
+  // ============================================================================
+  // Step 9: Strict Sequential Review Hierarchy Enforcement (Negative Testing)
+  // ============================================================================
+  console.log('\n--- Step 9: Strict Sequential Review Hierarchy Enforcement (Negative Testing) ---');
+  const negCreate = await request('/workflows', 'POST', {
+    title: 'Negative Test: Sequential Review Hierarchy Enforcement',
+    category: 'UG',
+    type: 'UG_PROJECT',
+    domain: 'Formal Verification',
+    proposedGuideId: guide.id,
+    abstract: 'Verifying that out-of-order review transitions are strictly rejected with HTTP 400.',
+    submittedBy: {
+      id: student.id,
+      name: student.name,
+      email: student.email,
+      degree: 'B.Tech Scholar'
+    }
+  });
+  const negWf = negCreate.body.data;
+  assert(negWf.state === 'UNDER_GUIDE_REVIEW', 'NegTest workflow starts in UNDER_GUIDE_REVIEW');
+
+  // 9a. Coordinator attempts to verify while still in UNDER_GUIDE_REVIEW -> MUST FAIL 400
+  const coordPremature = await request(`/workflows/${negWf.id}/transition`, 'POST', {
+    actionKey: 'COORDINATOR_VERIFY',
+    remarks: 'Attempt premature verification before guide endorsement',
+    actorId: coordinator.id,
+    actorName: coordinator.name,
+    actorRole: 'Project Coordinator'
+  });
+  assert(coordPremature.status === 400, `Coordinator premature verify rejected with HTTP 400 (got: ${coordPremature.status})`);
+  assert(coordPremature.body.error.includes('coordinator cannot review'), `Coordinator premature verify returned informative error: "${coordPremature.body.error}"`);
+
+  // 9b. HOD attempts to sanction while still in UNDER_GUIDE_REVIEW -> MUST FAIL 400
+  const hodPrematureGuide = await request(`/workflows/${negWf.id}/transition`, 'POST', {
+    actionKey: 'HOD_APPROVE',
+    remarks: 'Attempt premature sanction before guide and coordinator review',
+    actorId: hod.id,
+    actorName: hod.name,
+    actorRole: 'Head of Department'
+  });
+  assert(hodPrematureGuide.status === 400, `HOD premature sanction on UNDER_GUIDE_REVIEW rejected with HTTP 400 (got: ${hodPrematureGuide.status})`);
+  assert(hodPrematureGuide.body.error.includes('HOD cannot review or sanction'), `HOD premature sanction returned informative error: "${hodPrematureGuide.body.error}"`);
+
+  // 9c. HOD attempts to request revision while still in UNDER_GUIDE_REVIEW -> MUST FAIL 400
+  const hodPrematureRev = await request(`/workflows/${negWf.id}/transition`, 'POST', {
+    actionKey: 'REQUEST_REVISION',
+    remarks: 'Attempt premature revision request',
+    actorId: hod.id,
+    actorName: hod.name,
+    actorRole: 'Head of Department'
+  });
+  assert(hodPrematureRev.status === 400, `HOD premature revision rejected with HTTP 400 (got: ${hodPrematureRev.status})`);
+
+  // 9d. Guide endorses -> moves to UNDER_COORDINATOR_REVIEW
+  const guideEndorse = await request(`/workflows/${negWf.id}/transition`, 'POST', {
+    actionKey: 'GUIDE_ENDORSE',
+    remarks: 'Legitimate guide endorsement',
+    actorId: guide.id,
+    actorName: guide.name,
+    actorRole: 'Faculty Guide'
+  });
+  assert(guideEndorse.status === 200, 'Legitimate Guide Endorse succeeds with HTTP 200');
+  assert(guideEndorse.body.data.state === 'UNDER_COORDINATOR_REVIEW', 'Workflow now in UNDER_COORDINATOR_REVIEW');
+
+  // 9e. HOD attempts to sanction while in UNDER_COORDINATOR_REVIEW -> MUST FAIL 400
+  const hodPrematureCoord = await request(`/workflows/${negWf.id}/transition`, 'POST', {
+    actionKey: 'HOD_APPROVE',
+    remarks: 'Attempt premature sanction before coordinator verification',
+    actorId: hod.id,
+    actorName: hod.name,
+    actorRole: 'Head of Department'
+  });
+  assert(hodPrematureCoord.status === 400, `HOD premature sanction on UNDER_COORDINATOR_REVIEW rejected with HTTP 400 (got: ${hodPrematureCoord.status})`);
+  assert(hodPrematureCoord.body.error.includes('verified by the coordinator'), `HOD premature sanction returned informative error: "${hodPrematureCoord.body.error}"`);
+
+  // 9f. Guide attempts duplicate endorse while in UNDER_COORDINATOR_REVIEW -> MUST FAIL 400
+  const guideDupEndorse = await request(`/workflows/${negWf.id}/transition`, 'POST', {
+    actionKey: 'GUIDE_ENDORSE',
+    remarks: 'Attempt duplicate endorsement',
+    actorId: guide.id,
+    actorName: guide.name,
+    actorRole: 'Faculty Guide'
+  });
+  assert(guideDupEndorse.status === 400, `Duplicate guide endorse rejected with HTTP 400 (got: ${guideDupEndorse.status})`);
+
+  // 9g. Coordinator verifies -> moves to UNDER_HOD_REVIEW
+  const coordVerify = await request(`/workflows/${negWf.id}/transition`, 'POST', {
+    actionKey: 'COORDINATOR_VERIFY',
+    remarks: 'Legitimate coordinator verification',
+    actorId: coordinator.id,
+    actorName: coordinator.name,
+    actorRole: 'Project Coordinator'
+  });
+  assert(coordVerify.status === 200, 'Coordinator verification succeeds with HTTP 200');
+  assert(coordVerify.body.data.state === 'UNDER_HOD_REVIEW', 'Workflow now in UNDER_HOD_REVIEW');
+
+  // 9h. HOD sanctions -> moves to APPROVED
+  const hodSanction = await request(`/workflows/${negWf.id}/transition`, 'POST', {
+    actionKey: 'HOD_APPROVE',
+    remarks: 'Legitimate HOD final sanction',
+    actorId: hod.id,
+    actorName: hod.name,
+    actorRole: 'Head of Department'
+  });
+  assert(hodSanction.status === 200, 'HOD final sanction succeeds with HTTP 200');
+  assert(hodSanction.body.data.state === 'APPROVED', 'Workflow now in APPROVED');
+
+  // 9i. Re-sanctioning an already APPROVED workflow -> MUST FAIL 400
+  const hodReSanction = await request(`/workflows/${negWf.id}/transition`, 'POST', {
+    actionKey: 'HOD_APPROVE',
+    remarks: 'Attempt re-sanction on approved workflow',
+    actorId: hod.id,
+    actorName: hod.name,
+    actorRole: 'Head of Department'
+  });
+  assert(hodReSanction.status === 400, `Re-sanction of APPROVED workflow rejected with HTTP 400 (got: ${hodReSanction.status})`);
+
+  // 9j. Resubmitting an APPROVED workflow -> MUST FAIL 400
+  const resubmitApproved = await request(`/workflows/${negWf.id}/transition`, 'POST', {
+    actionKey: 'STUDENT_RESUBMIT',
+    remarks: 'Attempt resubmission of approved proposal',
+    actorId: student.id,
+    actorName: student.name,
+    actorRole: 'UG Student'
+  });
+  assert(resubmitApproved.status === 400, `Resubmission of APPROVED workflow rejected with HTTP 400 (got: ${resubmitApproved.status})`);
+
   console.log('\n============================================================================');
-  console.log('🎉 ALL 7 WORKFLOW PATHS & VISIBILITY CHECKS PASSED FLAWLESSLY IN ATLAS!');
+  console.log('🎉 ALL 7 WORKFLOW PATHS + NEGATIVE HIERARCHY TESTS PASSED IN ATLAS!');
   console.log('============================================================================');
 }
 

@@ -6,9 +6,15 @@ const Faculty = require('../models/Faculty');
 
 // Helper to query workflow by either business tracking ID or MongoDB _id
 const findWorkflowById = (id) => {
-  const query = [{ id: id }];
-  if (mongoose.Types.ObjectId.isValid(id)) {
-    query.push({ _id: id });
+  if (!id) return null;
+  const cleanId = String(id).trim();
+  const escaped = cleanId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const query = [
+    { id: cleanId },
+    { id: new RegExp('^' + escaped + '$', 'i') }
+  ];
+  if (mongoose.Types.ObjectId.isValid(cleanId)) {
+    query.push({ _id: cleanId });
   }
   return Workflow.findOne({ $or: query });
 };
@@ -213,10 +219,11 @@ exports.transitionWorkflow = async (req, res) => {
     const wf = await findWorkflowById(req.params.id);
 
     if (!wf) {
-      return res.status(404).json({ success: false, error: 'Workflow not found.' });
+      return res.status(404).json({ success: false, error: `Workflow with ID ${req.params.id} not found.` });
     }
 
     const previousState = wf.state;
+    const roleUpper = String(actorRole).toUpperCase();
     let nextState = previousState;
     let actionLabel = actionKey;
     let targetNotifRole = 'STUDENT';
@@ -229,6 +236,12 @@ exports.transitionWorkflow = async (req, res) => {
     switch (actionKey) {
       case 'RESUBMIT':
       case 'STUDENT_RESUBMIT':
+        if (previousState !== 'REVISION_REQUESTED' && previousState !== 'DRAFT') {
+          return res.status(400).json({ 
+            success: false, 
+            error: `Resubmission is only allowed when revision has been requested (Current status: ${previousState}).` 
+          });
+        }
         nextState = 'UNDER_GUIDE_REVIEW';
         actionLabel = 'REVISION_SUBMITTED';
         if (req.body.title && req.body.title.trim()) {
@@ -256,6 +269,12 @@ exports.transitionWorkflow = async (req, res) => {
 
       case 'GUIDE_ENDORSE':
       case 'GUIDE_APPROVE':
+        if (previousState !== 'UNDER_GUIDE_REVIEW') {
+          return res.status(400).json({ 
+            success: false, 
+            error: `Guide endorsement can only be performed when the proposal is under guide review (Current status: ${previousState}).` 
+          });
+        }
         nextState = 'UNDER_COORDINATOR_REVIEW';
         actionLabel = 'GUIDE_ENDORSED';
         notifMessage = `${actorName} endorsed: ${wf.title}. Awaiting coordinator review.`;
@@ -274,6 +293,18 @@ exports.transitionWorkflow = async (req, res) => {
       case 'COORDINATOR_VERIFY':
       case 'COORDINATOR_FORWARD':
       case 'COORDINATOR_EXPEDITE':
+        if (previousState === 'UNDER_GUIDE_REVIEW') {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'The coordinator cannot review before the proposal has been reviewed and endorsed by the faculty guide.' 
+          });
+        }
+        if (previousState !== 'UNDER_COORDINATOR_REVIEW') {
+          return res.status(400).json({ 
+            success: false, 
+            error: `Coordinator verification can only be performed when the proposal is under coordinator review (Current status: ${previousState}).` 
+          });
+        }
         nextState = 'UNDER_HOD_REVIEW';
         actionLabel = 'COORDINATOR_VERIFIED';
         notifMessage = `Coordinator ${actorName} verified & forwarded: ${wf.title} for HOD sanction.`;
@@ -282,6 +313,30 @@ exports.transitionWorkflow = async (req, res) => {
 
       case 'HOD_APPROVE':
       case 'HOD_SANCTION':
+        if (previousState === 'UNDER_GUIDE_REVIEW') {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'The HOD cannot review or sanction before the proposal has been reviewed by the faculty guide and the coordinator.' 
+          });
+        }
+        if (previousState === 'UNDER_COORDINATOR_REVIEW') {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'The HOD cannot review or sanction before the proposal has been verified by the coordinator.' 
+          });
+        }
+        if (previousState === 'APPROVED') {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'This proposal has already received final sanction and approval.' 
+          });
+        }
+        if (previousState !== 'UNDER_HOD_REVIEW') {
+          return res.status(400).json({ 
+            success: false, 
+            error: `HOD sanction can only be granted when the proposal is under HOD review (Current status: ${previousState}).` 
+          });
+        }
         nextState = 'APPROVED';
         actionLabel = 'HOD_SANCTIONED';
         wf.sanctionDate = nowStr;
@@ -291,6 +346,36 @@ exports.transitionWorkflow = async (req, res) => {
         break;
 
       case 'REQUEST_REVISION':
+        if (previousState === 'UNDER_GUIDE_REVIEW' && (roleUpper.includes('HOD') || roleUpper.includes('HEAD'))) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'The HOD cannot review before the proposal has been reviewed by the faculty guide and the coordinator.' 
+          });
+        }
+        if (previousState === 'UNDER_GUIDE_REVIEW' && roleUpper.includes('COORD')) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'The coordinator cannot review before the proposal has been reviewed and endorsed by the faculty guide.' 
+          });
+        }
+        if (previousState === 'UNDER_COORDINATOR_REVIEW' && (roleUpper.includes('HOD') || roleUpper.includes('HEAD'))) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'The HOD cannot review before the proposal has been verified by the coordinator.' 
+          });
+        }
+        if (previousState === 'REVISION_REQUESTED') {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Revision has already been requested for this proposal. Awaiting student resubmission.' 
+          });
+        }
+        if (previousState === 'APPROVED' || previousState === 'REJECTED') {
+          return res.status(400).json({ 
+            success: false, 
+            error: `Cannot request revision on a proposal that is already ${previousState}.` 
+          });
+        }
         nextState = 'REVISION_REQUESTED';
         actionLabel = 'REVISION_REQUESTED';
         notifMessage = `Revision required on ${wf.title} by ${actorName}: "${comment}"`;
@@ -299,6 +384,30 @@ exports.transitionWorkflow = async (req, res) => {
 
       case 'REJECT':
       case 'WORKFLOW_REJECTED':
+        if (previousState === 'UNDER_GUIDE_REVIEW' && (roleUpper.includes('HOD') || roleUpper.includes('HEAD'))) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'The HOD cannot review or reject before the proposal has been reviewed by the faculty guide and the coordinator.' 
+          });
+        }
+        if (previousState === 'UNDER_GUIDE_REVIEW' && roleUpper.includes('COORD')) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'The coordinator cannot review or reject before the proposal has been reviewed and endorsed by the faculty guide.' 
+          });
+        }
+        if (previousState === 'UNDER_COORDINATOR_REVIEW' && (roleUpper.includes('HOD') || roleUpper.includes('HEAD'))) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'The HOD cannot review or reject before the proposal has been verified by the coordinator.' 
+          });
+        }
+        if (previousState === 'APPROVED' || previousState === 'REJECTED') {
+          return res.status(400).json({ 
+            success: false, 
+            error: `Proposal is already in terminal state: ${previousState}.` 
+          });
+        }
         nextState = 'REJECTED';
         actionLabel = 'WORKFLOW_REJECTED';
         notifMessage = `Workflow rejected for ${wf.title}. Reason: ${comment}`;
