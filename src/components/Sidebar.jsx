@@ -27,7 +27,8 @@ export const Sidebar = () => {
     if (currentRoleKey === 'FACULTY') {
       return w.state === 'UNDER_GUIDE_REVIEW' && (
         w.details?.proposedGuideId === currentRoleData.id || 
-        w.details?.allocatedGuideId === currentRoleData.id
+        w.details?.allocatedGuideId === currentRoleData.id ||
+        (currentRoleData?.name && w.details?.guideName && w.details.guideName.toLowerCase().includes(currentRoleData.name.toLowerCase()))
       );
     }
     return false;

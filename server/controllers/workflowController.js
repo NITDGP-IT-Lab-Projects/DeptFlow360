@@ -108,7 +108,8 @@ exports.createWorkflow = async (req, res) => {
         domain: domain || 'General IT',
         abstract,
         proposedGuideId: proposedGuideId || null,
-        allocatedGuideId: proposedGuideId || null,
+        allocatedGuideId: req.body.allocatedGuideId || proposedGuideId || null,
+        guideName: req.body.guideName || null,
         purpose: isDirectDept ? abstract : null
       },
       state: initialState,
@@ -181,7 +182,12 @@ exports.createWorkflow = async (req, res) => {
 // POST /api/workflows/:id/transition - Execute RBAC State Transition
 exports.transitionWorkflow = async (req, res) => {
   try {
-    const { actionKey, comment, actorRole, actorData } = req.body;
+    const actionKey = req.body.actionKey || req.body.action;
+    const comment = req.body.comment || req.body.remarks || '';
+    const actorRole = req.body.actorRole || req.body.actorData?.title || req.body.actorData?.role || 'Authority';
+    const actorName = req.body.actorName || req.body.actorData?.name || 'Authority';
+    const actorId = req.body.actorId || req.body.actorData?.id || 'SYS';
+
     const wf = await Workflow.findOne({ id: req.params.id });
 
     if (!wf) {
@@ -196,23 +202,24 @@ exports.transitionWorkflow = async (req, res) => {
 
     switch (actionKey) {
       case 'RESUBMIT':
+      case 'STUDENT_RESUBMIT':
         nextState = 'UNDER_GUIDE_REVIEW';
         actionLabel = 'STUDENT_RESUBMITTED';
-        notifMessage = `${actorData?.name} resubmitted: ${wf.title}`;
+        notifMessage = `${actorName} resubmitted: ${wf.title}`;
         targetNotifRole = 'FACULTY';
         break;
 
       case 'GUIDE_ENDORSE':
         nextState = 'UNDER_COORDINATOR_REVIEW';
         actionLabel = 'GUIDE_ENDORSED';
-        notifMessage = `${actorData?.name} endorsed: ${wf.title}. Awaiting coordinator review.`;
+        notifMessage = `${actorName} endorsed: ${wf.title}. Awaiting coordinator review.`;
         targetNotifRole = 'COORDINATOR';
         break;
 
       case 'COORDINATOR_VERIFY':
         nextState = 'UNDER_HOD_REVIEW';
         actionLabel = 'COORDINATOR_VERIFIED';
-        notifMessage = `Coordinator ${actorData?.name} verified & forwarded: ${wf.title} for HOD sanction.`;
+        notifMessage = `Coordinator ${actorName} verified & forwarded: ${wf.title} for HOD sanction.`;
         targetNotifRole = 'HOD';
         break;
 
@@ -226,7 +233,7 @@ exports.transitionWorkflow = async (req, res) => {
       case 'REQUEST_REVISION':
         nextState = 'REVISION_REQUESTED';
         actionLabel = 'REVISION_REQUESTED';
-        notifMessage = `Revision required on ${wf.title} by ${actorData?.name}: "${comment}"`;
+        notifMessage = `Revision required on ${wf.title} by ${actorName}: "${comment}"`;
         targetNotifRole = wf.category === 'UG' ? 'UG_STUDENT' : 'PG_STUDENT';
         break;
 
@@ -248,9 +255,9 @@ exports.transitionWorkflow = async (req, res) => {
     wf.state = nextState;
     wf.history.push({
       timestamp: nowStr,
-      actorId: actorData?.id || 'SYS',
-      actorName: actorData?.name || 'Authority',
-      actorRole: actorData?.title || actorRole || 'Authority',
+      actorId: actorId,
+      actorName: actorName,
+      actorRole: actorRole,
       action: actionLabel,
       comment: comment || 'Action confirmed through portal interface.',
       statusFrom: previousState,
@@ -316,6 +323,18 @@ exports.evaluateMilestone = async (req, res) => {
     await wf.save();
 
     res.json({ success: true, data: milestone, workflow: wf });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+// POST /api/workflows/reset - Reset Workflows Collection to Baseline
+exports.resetWorkflows = async (req, res) => {
+  try {
+    const { INITIAL_WORKFLOWS } = require('../seed/seedData');
+    await Workflow.deleteMany({});
+    await Workflow.insertMany(INITIAL_WORKFLOWS);
+    res.json({ success: true, message: 'Workflows reset to clean baseline.' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

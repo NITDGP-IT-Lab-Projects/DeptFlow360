@@ -170,7 +170,8 @@ exports.runMatching = async (req, res) => {
 // POST /api/allocation/override - Manual Guide Override
 exports.manualOverride = async (req, res) => {
   try {
-    const { teamId, newFacultyId, reason, actorName } = req.body;
+    const { teamId, newFacultyId, reason } = req.body;
+    const actorName = req.body.actorName || req.body.overrideBy || 'Coordinator';
     const team = await ProjectTeam.findOne({ teamId });
 
     if (!team) {

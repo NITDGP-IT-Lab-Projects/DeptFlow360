@@ -112,14 +112,14 @@ describe('WorkflowEngine Tests', () => {
     );
     assert.strictEqual(revWf.state, 'REVISION_REQUESTED');
 
-    // 2. In REVISION_REQUESTED, student now has RESUBMIT action
+    // 2. In REVISION_REQUESTED, student now has RESUBMIT / STUDENT_RESUBMIT action
     const studentActions = engine.getAvailableActions(revWf, 'UG_STUDENT', INITIAL_ROLES.UG_STUDENT);
-    assert.ok(studentActions.some(a => a.key === 'RESUBMIT'));
+    assert.ok(studentActions.some(a => a.key === 'STUDENT_RESUBMIT' || a.key === 'RESUBMIT'));
 
     // 3. Student resubmits
     const resubmittedWf = engine.transition(
       wfId,
-      'RESUBMIT',
+      'STUDENT_RESUBMIT',
       'Updated section 3 with lattice cryptography proof.',
       'UG_STUDENT',
       INITIAL_ROLES.UG_STUDENT
@@ -181,5 +181,24 @@ describe('WorkflowEngine Tests', () => {
     updatedNotifs.forEach(n => {
       assert.strictEqual(n.read, true);
     });
+  });
+
+  it('should ensure WF-2026-NOC-12 is supervised and reviewable by Guide Dr. Vikramaditya Das', () => {
+    const nocWf = engine.getById('WF-2026-NOC-12');
+    assert.ok(nocWf, 'NOC-12 should exist');
+    assert.strictEqual(nocWf.state, 'UNDER_GUIDE_REVIEW');
+    assert.strictEqual(nocWf.details.proposedGuideId, 'FAC-03');
+    assert.strictEqual(nocWf.details.allocatedGuideId, 'FAC-03');
+
+    // Guide available actions
+    const guideActions = engine.getAvailableActions(nocWf, 'FACULTY', INITIAL_ROLES.FACULTY);
+    const actionKeys = guideActions.map(a => a.key);
+    assert.ok(actionKeys.includes('GUIDE_ENDORSE'), 'Guide should have GUIDE_ENDORSE');
+    assert.ok(actionKeys.includes('REQUEST_REVISION'), 'Guide should have REQUEST_REVISION');
+    assert.ok(actionKeys.includes('REJECT'), 'Guide should have REJECT');
+
+    // Guide endorses NOC
+    const endorsedWf = engine.transition('WF-2026-NOC-12', 'GUIDE_ENDORSE', 'Endorsed internship research alignment.', 'FACULTY', INITIAL_ROLES.FACULTY);
+    assert.strictEqual(endorsedWf.state, 'UNDER_COORDINATOR_REVIEW');
   });
 });

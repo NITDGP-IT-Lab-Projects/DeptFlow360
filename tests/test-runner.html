@@ -187,7 +187,12 @@
         const wfId = 'WF-2026-UG-04';
         const revWf = engine.transition(wfId, 'REQUEST_REVISION', 'Refine section 3.', 'HOD', INITIAL_ROLES.HOD);
         assert.strictEqual(revWf.state, 'REVISION_REQUESTED');
-        const resubmittedWf = engine.transition(wfId, 'RESUBMIT', 'Updated section 3.', 'UG_STUDENT', INITIAL_ROLES.UG_STUDENT);
+        
+        // Student should have STUDENT_RESUBMIT available
+        const studentActions = engine.getAvailableActions(revWf, 'UG_STUDENT', INITIAL_ROLES.UG_STUDENT);
+        assert.ok(studentActions.some(a => a.key === 'STUDENT_RESUBMIT' || a.key === 'RESUBMIT'));
+
+        const resubmittedWf = engine.transition(wfId, 'STUDENT_RESUBMIT', 'Updated section 3.', 'UG_STUDENT', INITIAL_ROLES.UG_STUDENT);
         assert.strictEqual(resubmittedWf.state, 'UNDER_GUIDE_REVIEW');
       });
 
@@ -225,6 +230,26 @@
         engine.markAllNotificationsRead();
         const updated = engine.getNotifications('HOD');
         updated.forEach(n => assert.strictEqual(n.read, true));
+      });
+
+      test('14. should ensure WF-2026-NOC-12 is supervised and reviewable by Guide Dr. Vikramaditya Das', () => {
+        beforeEach();
+        const nocWf = engine.getById('WF-2026-NOC-12');
+        assert.ok(nocWf, 'NOC-12 should exist');
+        assert.strictEqual(nocWf.state, 'UNDER_GUIDE_REVIEW');
+        assert.strictEqual(nocWf.details.proposedGuideId, 'FAC-03');
+        assert.strictEqual(nocWf.details.allocatedGuideId, 'FAC-03');
+
+        // Check Guide available actions
+        const guideActions = engine.getAvailableActions(nocWf, 'FACULTY', INITIAL_ROLES.FACULTY);
+        const actionKeys = guideActions.map(a => a.key);
+        assert.ok(actionKeys.includes('GUIDE_ENDORSE'), 'Guide should have GUIDE_ENDORSE');
+        assert.ok(actionKeys.includes('REQUEST_REVISION'), 'Guide should have REQUEST_REVISION');
+        assert.ok(actionKeys.includes('REJECT'), 'Guide should have REJECT');
+
+        // Guide endorses NOC
+        const endorsedWf = engine.transition('WF-2026-NOC-12', 'GUIDE_ENDORSE', 'Endorsed internship research alignment.', 'FACULTY', INITIAL_ROLES.FACULTY);
+        assert.strictEqual(endorsedWf.state, 'UNDER_COORDINATOR_REVIEW');
       });
     });
 
