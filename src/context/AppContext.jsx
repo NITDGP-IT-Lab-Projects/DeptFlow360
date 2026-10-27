@@ -13,19 +13,16 @@ const clientHashPassword = async (password) => {
   return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
 };
 
-// Purge stale mock cache from previous sessions once
+// Purge any stale cache or credentials from storage immediately on script evaluation
 try {
-  const CLEAN_VERSION = 'deptflow_clean_v4';
-  if (localStorage.getItem('deptflow_clean_stamp') !== CLEAN_VERSION) {
-    localStorage.removeItem('DAWMS_DEPT_PORTAL_WORKFLOWS');
-    localStorage.removeItem('DAWMS_DEPT_PORTAL_FACULTY');
-    localStorage.removeItem('DAWMS_DEPT_PORTAL_PROJECT_TEAMS');
-    localStorage.removeItem('DAWMS_DEPT_PORTAL_NOTIFICATIONS');
-    localStorage.removeItem('DAWMS_DEPT_PORTAL_REGISTERED_USERS');
-    localStorage.removeItem('deptflow_user');
-    localStorage.removeItem('deptflow_auth_token');
-    localStorage.setItem('deptflow_clean_stamp', CLEAN_VERSION);
-  }
+  localStorage.removeItem('DAWMS_DEPT_PORTAL_WORKFLOWS');
+  localStorage.removeItem('DAWMS_DEPT_PORTAL_FACULTY');
+  localStorage.removeItem('DAWMS_DEPT_PORTAL_PROJECT_TEAMS');
+  localStorage.removeItem('DAWMS_DEPT_PORTAL_NOTIFICATIONS');
+  localStorage.removeItem('DAWMS_DEPT_PORTAL_REGISTERED_USERS');
+  localStorage.removeItem('deptflow_user');
+  localStorage.removeItem('deptflow_auth_token');
+  sessionStorage.clear();
 } catch (e) {
   console.warn('Storage purge error:', e);
 }
@@ -37,20 +34,14 @@ export const AppProvider = ({ children }) => {
   const workflowEngine = useMemo(() => new WorkflowEngine(DeptStore), []);
   const allocationEngine = useMemo(() => new AllocationEngine(DeptStore), []);
 
-  // Authentication & User State (Defaults to null to force authentication at root URL)
-  const [currentUser, setCurrentUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem('deptflow_user');
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return null;
-  });
+  // Authentication & User State (Strictly in-memory session; NEVER restored from storage)
+  const [currentUser, setCurrentUser] = useState(null);
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState('SIGNIN'); // 'SIGNIN' | 'SIGNUP'
 
   // Application State
-  const [currentRoleKey, setCurrentRoleKey] = useState(() => currentUser?.role || 'HOD');
+  const [currentRoleKey, setCurrentRoleKey] = useState(() => currentUser?.role || 'UG_STUDENT');
   const [activeView, setActiveView] = useState('dashboard');
   const [workflows, setWorkflows] = useState(() => workflowEngine.getAll());
   const [facultyList, setFacultyList] = useState(() => allocationEngine.getFacultyList());
@@ -59,6 +50,15 @@ export const AppProvider = ({ children }) => {
   const [simulationLogs, setSimulationLogs] = useState([]);
   const [backendOnline, setBackendOnline] = useState(false);
   const [backendDetails, setBackendDetails] = useState(null);
+
+  // Guarantee clean storage on component mount
+  useEffect(() => {
+    try {
+      localStorage.removeItem('deptflow_user');
+      localStorage.removeItem('deptflow_auth_token');
+      sessionStorage.clear();
+    } catch {}
+  }, []);
 
   // Modal State
   const [activeModal, setActiveModal] = useState(null);
@@ -86,7 +86,7 @@ export const AppProvider = ({ children }) => {
   }, [currentUser]);
 
   const currentRoleData = useMemo(() => {
-    const baseRole = INITIAL_ROLES[currentRoleKey] || INITIAL_ROLES.HOD;
+    const baseRole = INITIAL_ROLES[currentRoleKey] || INITIAL_ROLES.UG_STUDENT;
     if (currentUser && currentUser.name) {
       return {
         ...baseRole,
@@ -96,7 +96,12 @@ export const AppProvider = ({ children }) => {
         email: currentUser.email
       };
     }
-    return baseRole;
+    return {
+      ...baseRole,
+      name: '',
+      title: '',
+      email: ''
+    };
   }, [currentRoleKey, currentUser]);
 
   // Check Backend Connection and sync data if available
@@ -163,7 +168,6 @@ export const AppProvider = ({ children }) => {
       if (res && res.success && res.user) {
         setBackendOnline(true);
         setCurrentUser(res.user);
-        localStorage.setItem('deptflow_user', JSON.stringify(res.user));
         setCurrentRoleKey(res.user.role);
         setAuthModalOpen(false);
         addToast('success', 'Sign In Successful', `Authenticated as ${res.user.name} (${res.user.role}) [Backend Synced]`);
@@ -206,7 +210,6 @@ export const AppProvider = ({ children }) => {
     };
 
     setCurrentUser(userObj);
-    localStorage.setItem('deptflow_user', JSON.stringify(userObj));
     setCurrentRoleKey(userObj.role);
     setAuthModalOpen(false);
     addToast('success', 'Sign In Successful', `Authenticated as ${userObj.name} (${userObj.role}) [Offline Mode]`);
@@ -238,7 +241,6 @@ export const AppProvider = ({ children }) => {
       if (res && res.success && res.user) {
         setBackendOnline(true);
         setCurrentUser(res.user);
-        localStorage.setItem('deptflow_user', JSON.stringify(res.user));
         setCurrentRoleKey(res.user.role);
         setAuthModalOpen(false);
         addToast('success', 'Account Registered', `Welcome to DeptFlow 360, ${res.user.name}!`);
@@ -306,7 +308,6 @@ export const AppProvider = ({ children }) => {
     }
 
     setCurrentUser(userObj);
-    localStorage.setItem('deptflow_user', JSON.stringify(userObj));
     setCurrentRoleKey(userObj.role);
     setAuthModalOpen(false);
     addToast('success', 'Account Registered', `New account created for ${userObj.name} (${userObj.role}).`);
@@ -315,7 +316,11 @@ export const AppProvider = ({ children }) => {
 
   const handleSignOut = useCallback(() => {
     api.signOut();
-    localStorage.removeItem('deptflow_user');
+    try {
+      localStorage.removeItem('deptflow_user');
+      localStorage.removeItem('deptflow_auth_token');
+      sessionStorage.clear();
+    } catch {}
     setCurrentUser(null);
     setCurrentRoleKey('UG_STUDENT');
     addToast('info', 'Signed Out', 'Your session has been terminated safely.');

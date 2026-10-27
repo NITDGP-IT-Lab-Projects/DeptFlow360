@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
 import {
   IconShield,
@@ -26,6 +26,28 @@ export const AuthModal = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  const emailInputRef = useRef(null);
+  const passwordInputRef = useRef(null);
+
+  // Guarantee modal input boxes start completely clean and prevent browser autofill
+  useEffect(() => {
+    if (authModalOpen) {
+      setEmail('');
+      setPassword('');
+      setName('');
+      setDesignation('');
+      if (emailInputRef.current) emailInputRef.current.value = '';
+      if (passwordInputRef.current) passwordInputRef.current.value = '';
+
+      const timer = setTimeout(() => {
+        if (emailInputRef.current) emailInputRef.current.value = '';
+        if (passwordInputRef.current) passwordInputRef.current.value = '';
+      }, 80);
+
+      return () => clearTimeout(timer);
+    }
+  }, [authModalOpen, mode]);
 
   if (!authModalOpen) return null;
 
@@ -76,7 +98,12 @@ export const AuthModal = () => {
               type="button"
               className={`persona-segment-btn ${mode === 'SIGNIN' ? 'active' : ''}`}
               style={{ flex: 1, justifyContent: 'center' }}
-              onClick={() => { setMode('SIGNIN'); setErrorMsg(''); }}
+              onClick={() => { 
+                setMode('SIGNIN'); 
+                setErrorMsg('');
+                setEmail('');
+                setPassword('');
+              }}
             >
               Sign In (Existing User)
             </button>
@@ -84,14 +111,27 @@ export const AuthModal = () => {
               type="button"
               className={`persona-segment-btn ${mode === 'SIGNUP' ? 'active' : ''}`}
               style={{ flex: 1, justifyContent: 'center' }}
-              onClick={() => { setMode('SIGNUP'); setErrorMsg(''); }}
+              onClick={() => { 
+                setMode('SIGNUP'); 
+                setErrorMsg('');
+                setEmail('');
+                setPassword('');
+                setName('');
+                setDesignation('');
+              }}
             >
               Sign Up (New User)
             </button>
           </div>
         </div>
 
-        <form onSubmit={onSubmit}>
+        <form onSubmit={onSubmit} autoComplete="off" data-lpignore="true" data-form-type="other">
+          {/* Decoy fields to thwart browser password autofill */}
+          <div style={{ display: 'none', position: 'absolute', left: '-9999px', opacity: 0 }} aria-hidden="true">
+            <input type="text" name="fake_username_prevent_autofill_modal" tabIndex="-1" autoComplete="off" defaultValue="" />
+            <input type="password" name="fake_password_prevent_autofill_modal" tabIndex="-1" autoComplete="new-password" defaultValue="" />
+          </div>
+
           <div className="modal-body" style={{ gap: '1rem' }}>
             {errorMsg && (
               <div style={{
@@ -110,8 +150,6 @@ export const AuthModal = () => {
               </div>
             )}
 
-
-
             {/* Sign Up Fields */}
             {mode === 'SIGNUP' && (
               <>
@@ -119,10 +157,12 @@ export const AuthModal = () => {
                   <label>Full Legal Name:</label>
                   <input
                     type="text"
+                    name="modal_signup_legal_name"
                     className="form-control"
                     placeholder="e.g. Dr. Ramesh Gupta or Ananya Sen"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    autoComplete="off"
                     required
                   />
                 </div>
@@ -132,15 +172,7 @@ export const AuthModal = () => {
                   <select
                     className="form-control"
                     value={role}
-                    onChange={(e) => {
-                      const r = e.target.value;
-                      setRole(r);
-                      if (r === 'HOD') setDesignation('Professor & Head of Department');
-                      else if (r === 'COORDINATOR') setDesignation('Associate Professor (Coordinator)');
-                      else if (r === 'FACULTY') setDesignation('Associate Professor');
-                      else if (r === 'PG_STUDENT') setDesignation('PG Scholar (M.Tech)');
-                      else setDesignation('UG Capstone Lead (B.Tech)');
-                    }}
+                    onChange={(e) => setRole(e.target.value)}
                   >
                     <option value="UG_STUDENT">UG Student (B.Tech Capstone)</option>
                     <option value="PG_STUDENT">PG Student (M.Tech Dissertation)</option>
@@ -154,10 +186,12 @@ export const AuthModal = () => {
                   <label>Designation / Title:</label>
                   <input
                     type="text"
+                    name="modal_signup_designation"
                     className="form-control"
                     placeholder="e.g. Associate Professor or B.Tech Team 04 Lead"
                     value={designation}
                     onChange={(e) => setDesignation(e.target.value)}
+                    autoComplete="off"
                   />
                 </div>
               </>
@@ -167,11 +201,16 @@ export const AuthModal = () => {
             <div className="form-group">
               <label>Institutional Email Address:</label>
               <input
+                ref={emailInputRef}
                 type="email"
+                name="modal_user_auth_email"
                 className="form-control"
                 placeholder="name@university.edu"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
                 required
               />
             </div>
@@ -189,11 +228,16 @@ export const AuthModal = () => {
                 </button>
               </div>
               <input
+                ref={passwordInputRef}
                 type={showPassword ? 'text' : 'password'}
+                name="modal_user_auth_password"
                 className="form-control"
                 placeholder="Enter minimum 6 characters..."
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+                data-lpignore="true"
+                data-form-type="other"
                 required
               />
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>

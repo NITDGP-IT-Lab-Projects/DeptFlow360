@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext.jsx';
 import {
   IconGraduationCap,
@@ -17,10 +17,31 @@ export const AuthScreen = () => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState('UG_STUDENT');
-  const [designation, setDesignation] = useState('B.Tech Capstone Scholar');
+  const [designation, setDesignation] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  const emailInputRef = useRef(null);
+  const passwordInputRef = useRef(null);
+
+  // Guarantee all form inputs start 100% empty and cancel any browser autofill
+  useEffect(() => {
+    setEmail('');
+    setPassword('');
+    setName('');
+    setDesignation('');
+    if (emailInputRef.current) emailInputRef.current.value = '';
+    if (passwordInputRef.current) passwordInputRef.current.value = '';
+
+    // Clear again slightly after mount to defeat delayed browser autofill injections
+    const timer = setTimeout(() => {
+      if (emailInputRef.current) emailInputRef.current.value = '';
+      if (passwordInputRef.current) passwordInputRef.current.value = '';
+    }, 80);
+
+    return () => clearTimeout(timer);
+  }, [mode]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -101,7 +122,12 @@ export const AuthScreen = () => {
             type="button"
             className={`persona-segment-btn ${mode === 'SIGNIN' ? 'active' : ''}`}
             style={{ flex: 1, justifyContent: 'center', padding: '0.45rem 0.75rem' }}
-            onClick={() => { setMode('SIGNIN'); setErrorMsg(''); }}
+            onClick={() => { 
+              setMode('SIGNIN'); 
+              setErrorMsg('');
+              setEmail('');
+              setPassword('');
+            }}
           >
             Sign In (Existing User)
           </button>
@@ -109,7 +135,14 @@ export const AuthScreen = () => {
             type="button"
             className={`persona-segment-btn ${mode === 'SIGNUP' ? 'active' : ''}`}
             style={{ flex: 1, justifyContent: 'center', padding: '0.45rem 0.75rem' }}
-            onClick={() => { setMode('SIGNUP'); setErrorMsg(''); }}
+            onClick={() => { 
+              setMode('SIGNUP'); 
+              setErrorMsg('');
+              setEmail('');
+              setPassword('');
+              setName('');
+              setDesignation('');
+            }}
           >
             Sign Up (New User)
           </button>
@@ -151,7 +184,13 @@ export const AuthScreen = () => {
           </div>
         )}
 
-        <form onSubmit={onSubmit}>
+        <form onSubmit={onSubmit} autoComplete="off" data-lpignore="true" data-form-type="other">
+          {/* Invisible decoy inputs to divert browser / password manager auto-population */}
+          <div style={{ display: 'none', position: 'absolute', left: '-9999px', opacity: 0 }} aria-hidden="true">
+            <input type="text" name="fake_username_prevent_autofill" tabIndex="-1" autoComplete="off" defaultValue="" />
+            <input type="password" name="fake_password_prevent_autofill" tabIndex="-1" autoComplete="new-password" defaultValue="" />
+          </div>
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {mode === 'SIGNUP' && (
               <>
@@ -159,10 +198,12 @@ export const AuthScreen = () => {
                   <label>Full Name:</label>
                   <input
                     type="text"
+                    name="signup_legal_name"
                     className="form-control"
                     placeholder="e.g. Dr. Ramesh Sen or Ananya Sen"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    autoComplete="off"
                     required
                   />
                 </div>
@@ -172,15 +213,7 @@ export const AuthScreen = () => {
                   <select
                     className="form-control"
                     value={role}
-                    onChange={(e) => {
-                      const r = e.target.value;
-                      setRole(r);
-                      if (r === 'HOD') setDesignation('Professor & Head of Department');
-                      else if (r === 'COORDINATOR') setDesignation('Associate Professor (Coordinator)');
-                      else if (r === 'FACULTY') setDesignation('Associate Professor (Faculty Guide)');
-                      else if (r === 'PG_STUDENT') setDesignation('PG Scholar (M.Tech)');
-                      else setDesignation('B.Tech Capstone Lead');
-                    }}
+                    onChange={(e) => setRole(e.target.value)}
                   >
                     <option value="UG_STUDENT">UG Student (B.Tech Capstone)</option>
                     <option value="PG_STUDENT">PG Student (M.Tech Dissertation)</option>
@@ -194,10 +227,12 @@ export const AuthScreen = () => {
                   <label>Academic Designation / Team Name:</label>
                   <input
                     type="text"
+                    name="signup_academic_designation"
                     className="form-control"
                     placeholder="e.g. B.Tech Team 04 Lead or Assistant Professor"
                     value={designation}
                     onChange={(e) => setDesignation(e.target.value)}
+                    autoComplete="off"
                   />
                 </div>
               </>
@@ -206,12 +241,17 @@ export const AuthScreen = () => {
             <div className="form-group">
               <label>Institutional Email:</label>
               <input
+                ref={emailInputRef}
                 type="email"
+                name="academic_user_auth_email"
                 className="form-control"
                 id="authEmailInput"
                 placeholder="name@university.edu"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                autoComplete="off"
+                data-lpignore="true"
+                data-form-type="other"
                 required
               />
             </div>
@@ -236,12 +276,17 @@ export const AuthScreen = () => {
                 </button>
               </div>
               <input
+                ref={passwordInputRef}
                 type={showPassword ? 'text' : 'password'}
+                name="academic_user_auth_password"
                 className="form-control"
                 id="authPasswordInput"
                 placeholder="Enter password..."
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+                data-lpignore="true"
+                data-form-type="other"
                 required
               />
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>

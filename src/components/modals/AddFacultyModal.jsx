@@ -8,11 +8,11 @@ export const AddFacultyModal = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('FACULTY');
-  const [designation, setDesignation] = useState('Assistant Professor');
-  const [specializations, setSpecializations] = useState('Machine Learning, Distributed Systems');
+  const [designation, setDesignation] = useState('');
+  const [specializations, setSpecializations] = useState('');
   const [ugQuotaMax, setUgQuotaMax] = useState(3);
   const [pgQuotaMax, setPgQuotaMax] = useState(2);
-  const [room, setRoom] = useState('IT Block Room 302');
+  const [room, setRoom] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -120,13 +120,7 @@ export const AddFacultyModal = () => {
                 <select
                   className="form-control"
                   value={role}
-                  onChange={(e) => {
-                    const r = e.target.value;
-                    setRole(r);
-                    if (r === 'HOD') setDesignation('Professor & Head of Department');
-                    else if (r === 'COORDINATOR') setDesignation('Associate Professor (Coordinator)');
-                    else setDesignation('Assistant Professor');
-                  }}
+                  onChange={(e) => setRole(e.target.value)}
                 >
                   <option value="FACULTY">Faculty Member / Guide</option>
                   <option value="COORDINATOR">Project Coordinator</option>

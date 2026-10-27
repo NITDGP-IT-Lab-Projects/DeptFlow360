@@ -9,8 +9,8 @@ export const AddTeamModal = () => {
   const [title, setTitle] = useState('');
   const [leadName, setLeadName] = useState('');
   const [members, setMembers] = useState('');
-  const [avgCgpa, setAvgCgpa] = useState('8.50');
-  const [domain, setDomain] = useState('Cloud Computing & Distributed Systems');
+  const [avgCgpa, setAvgCgpa] = useState('');
+  const [domain, setDomain] = useState('');
   const [pref1, setPref1] = useState(facultyList[0]?.id || '');
   const [pref2, setPref2] = useState(facultyList[1]?.id || facultyList[0]?.id || '');
   const [pref3, setPref3] = useState(facultyList[2]?.id || facultyList[0]?.id || '');

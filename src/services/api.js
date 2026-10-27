@@ -6,40 +6,22 @@
 const PRIMARY_API = '/api';
 const DIRECT_BACKEND_API = 'http://localhost:5000/api';
 
-let cachedToken = null;
-
-try {
-  cachedToken = localStorage.getItem('deptflow_auth_token');
-} catch {
-  // SSR or local storage disabled
-}
+// DeptFlow 360 - Strictly in-memory token storage (no credential or token persistence across sessions)
+let inMemoryToken = null;
 
 export const setAuthToken = (token) => {
-  cachedToken = token;
+  inMemoryToken = token || null;
   try {
-    if (token) {
-      localStorage.setItem('deptflow_auth_token', token);
-    } else {
-      localStorage.removeItem('deptflow_auth_token');
-    }
-  } catch (e) {
-    console.warn('Could not persist auth token in localStorage:', e);
-  }
+    localStorage.removeItem('deptflow_auth_token');
+  } catch {}
 };
 
 export const getAuthToken = () => {
-  if (!cachedToken) {
-    try {
-      cachedToken = localStorage.getItem('deptflow_auth_token');
-    } catch {
-      cachedToken = null;
-    }
-  }
-  return cachedToken;
+  return inMemoryToken;
 };
 
 export const clearAuthToken = () => {
-  cachedToken = null;
+  inMemoryToken = null;
   try {
     localStorage.removeItem('deptflow_auth_token');
   } catch {}
