@@ -152,19 +152,20 @@ export const api = {
     });
   },
 
-  async transitionWorkflow(id, { action, actionKey, remarks, comment, actorRole, actorName }) {
-    const act = actionKey || action;
-    const comm = comment || remarks || '';
+  async transitionWorkflow(id, data = {}) {
+    const act = data.actionKey || data.action;
+    const comm = data.comment || data.remarks || '';
     return await apiRequest(`/workflows/${id}/transition`, {
       method: 'POST',
-      body: JSON.stringify({ 
+      body: JSON.stringify({
+        ...data,
         action: act, 
         actionKey: act, 
         remarks: comm, 
         comment: comm, 
-        actorRole, 
-        actorName,
-        actorData: { name: actorName, role: actorRole, title: actorRole }
+        actorRole: data.actorRole, 
+        actorName: data.actorName,
+        actorData: data.actorData || { name: data.actorName, role: data.actorRole, title: data.actorRole }
       })
     });
   },

@@ -348,7 +348,7 @@ export const AppProvider = ({ children }) => {
   }, [addToast]);
 
   // Actions
-  const handleTransition = useCallback(async (workflowId, actionKey, comment) => {
+  const handleTransition = useCallback(async (workflowId, actionKey, comment, extraPayload = {}) => {
     try {
       let updatedWf = null;
 
@@ -356,6 +356,7 @@ export const AppProvider = ({ children }) => {
       if (backendOnline) {
         try {
           const res = await api.transitionWorkflow(workflowId, {
+            ...extraPayload,
             action: actionKey,
             actionKey,
             remarks: comment,
@@ -389,7 +390,8 @@ export const AppProvider = ({ children }) => {
         actionKey, 
         comment, 
         currentRoleKey, 
-        currentRoleData
+        currentRoleData,
+        extraPayload
       );
       setWorkflows([...workflowEngine.getAll()]);
       setNotifications([...workflowEngine.notifications]);
@@ -399,6 +401,7 @@ export const AppProvider = ({ children }) => {
       if (!backendOnline) {
         try {
           await api.transitionWorkflow(workflowId, {
+            ...extraPayload,
             action: actionKey,
             actionKey,
             remarks: comment,

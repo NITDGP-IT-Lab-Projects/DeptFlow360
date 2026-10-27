@@ -173,18 +173,23 @@ async function runAllWorkflowPathTests() {
   assert(p2GuideRev.status === 200, 'Path 2 Guide Request Revision HTTP 200');
   assert(p2GuideRev.body.data.state === 'REVISION_REQUESTED', `Path 2 state is REVISION_REQUESTED (got: ${p2GuideRev.body.data.state})`);
 
-  // Student Resubmits
+  // Student Edits and Resubmits
   const p2StudentResubmit = await request(`/workflows/${wf2.id}/transition`, 'POST', {
     actionKey: 'STUDENT_RESUBMIT',
-    remarks: 'Revised abstract updated with NIST FIPS 203/204 citations and 32KB RAM memory benchmarks.',
+    title: 'Path 2 (Revised): Optimized Lattice-Based Kyber Key Exchange for IoT',
+    domain: 'Post-Quantum IoT Security',
+    abstract: 'Revised abstract updated with NIST FIPS 203/204 citations and 32KB RAM memory benchmarks on ARM Cortex-M4.',
+    remarks: 'Revised title, domain, and abstract with NIST FIPS 203 benchmarks as requested by guide.',
     actorId: student.id,
     actorName: student.name,
     actorRole: 'Student Scholar'
   });
   assert(p2StudentResubmit.status === 200, 'Path 2 Student Resubmit HTTP 200');
   assert(p2StudentResubmit.body.data.state === 'UNDER_GUIDE_REVIEW', `Path 2 state transitioned back to UNDER_GUIDE_REVIEW (got: ${p2StudentResubmit.body.data.state})`);
+  assert(p2StudentResubmit.body.data.title === 'Path 2 (Revised): Optimized Lattice-Based Kyber Key Exchange for IoT', 'Path 2 title updated with revision edits');
+  assert(p2StudentResubmit.body.data.details.domain === 'Post-Quantum IoT Security', 'Path 2 domain updated with revision edits');
 
-  // Guide Endorses
+  // Guide Endorses the revised proposal
   const p2GuideEndorse = await request(`/workflows/${wf2.id}/transition`, 'POST', {
     actionKey: 'GUIDE_ENDORSE',
     remarks: 'Revision is satisfactory. Forwarding to coordinator.',
@@ -194,6 +199,28 @@ async function runAllWorkflowPathTests() {
   });
   assert(p2GuideEndorse.status === 200, 'Path 2 Guide Endorse HTTP 200');
   assert(p2GuideEndorse.body.data.state === 'UNDER_COORDINATOR_REVIEW', 'Path 2 now UNDER_COORDINATOR_REVIEW');
+
+  // Coordinator Verifies the revised proposal
+  const p2CoordVerify = await request(`/workflows/${wf2.id}/transition`, 'POST', {
+    actionKey: 'COORDINATOR_VERIFY',
+    remarks: 'Revised IoT lab hardware verified.',
+    actorId: coordinator.id,
+    actorName: coordinator.name,
+    actorRole: 'Project Coordinator'
+  });
+  assert(p2CoordVerify.status === 200, 'Path 2 Coordinator Verify HTTP 200');
+  assert(p2CoordVerify.body.data.state === 'UNDER_HOD_REVIEW', 'Path 2 now UNDER_HOD_REVIEW');
+
+  // HOD Sanctions the revised proposal
+  const p2HODSanction = await request(`/workflows/${wf2.id}/transition`, 'POST', {
+    actionKey: 'HOD_APPROVE',
+    remarks: 'Final sanction granted for revised project.',
+    actorId: hod.id,
+    actorName: hod.name,
+    actorRole: 'Head of Department'
+  });
+  assert(p2HODSanction.status === 200, 'Path 2 HOD Sanction HTTP 200');
+  assert(p2HODSanction.body.data.state === 'APPROVED', 'Path 2 successfully re-completed entire chain to APPROVED');
 
   // ============================================================================
   // PATH 3: Guide Rejects Proposal
