@@ -79,6 +79,8 @@ const WorkflowSchema = new mongoose.Schema({
     default: 'UNDER_GUIDE_REVIEW'
   },
   slaDaysRemaining: { type: Number, default: 7 },
+  sanctionDate: { type: String, default: null },
+  sanctionLetterUrl: { type: String, default: null },
   history: [HistoryItemSchema],
   milestones: [MilestoneSchema]
 }, { timestamps: true });
