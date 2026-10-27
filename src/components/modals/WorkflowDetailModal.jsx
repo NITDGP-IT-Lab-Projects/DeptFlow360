@@ -95,7 +95,9 @@ export const WorkflowDetailModal = ({ workflow }) => {
         { key: 'REJECT', label: 'Reject Proposal', variant: 'danger' }
       );
     } else if (workflow.state === 'UNDER_GUIDE_REVIEW') {
-      hierarchyLockoutMessage = 'Awaiting Tier-1 Faculty Guide Review: The coordinator cannot review or forward before the proposal is reviewed and endorsed by the designated faculty guide.';
+      hierarchyLockoutMessage = 'Awaiting Tier-1 Faculty Guide Review: The coordinator cannot review, expedite, or forward before the proposal is reviewed and endorsed by the designated faculty guide.';
+    } else if (workflow.state === 'UNDER_HOD_REVIEW') {
+      hierarchyLockoutMessage = 'Proposal has been verified and forwarded to HOD for final sanction.';
     }
   } else if (currentRoleKey === 'FACULTY' && workflow.state === 'UNDER_GUIDE_REVIEW') {
     const isProposedGuide = workflow.details?.proposedGuideId === currentRoleData.id || 

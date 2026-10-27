@@ -107,8 +107,9 @@ exports.createWorkflow = async (req, res) => {
       year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
     });
 
-    const isDirectDept = (category === 'DEPARTMENTAL');
-    const initialState = isDirectDept ? 'UNDER_COORDINATOR_REVIEW' : 'UNDER_GUIDE_REVIEW';
+    // Strict sequential clearance order: Student -> Guide -> Coordinator -> HOD
+    // All proposals created by any actor (Student, Faculty Guide, Coordinator) enter the chain at UNDER_GUIDE_REVIEW
+    const initialState = 'UNDER_GUIDE_REVIEW';
 
     const submitter = req.body.submittedBy || actorData || {};
     const submitterName = (submitter.name || actorData?.name || 'Student Candidate').trim();
@@ -269,6 +270,24 @@ exports.transitionWorkflow = async (req, res) => {
 
       case 'GUIDE_ENDORSE':
       case 'GUIDE_APPROVE':
+        if (roleUpper.includes('COORD') || roleUpper.includes('COORDINATOR')) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Coordinator cannot review or endorse on behalf of the faculty guide. The legal clearance order is Student -> Guide -> Coordinator -> HOD.' 
+          });
+        }
+        if (roleUpper.includes('HOD') || roleUpper.includes('HEAD')) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'HOD cannot review or endorse on behalf of the faculty guide. The legal clearance order is Student -> Guide -> Coordinator -> HOD.' 
+          });
+        }
+        if (roleUpper.includes('STUDENT')) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Students cannot endorse proposals.' 
+          });
+        }
         if (previousState !== 'UNDER_GUIDE_REVIEW') {
           return res.status(400).json({ 
             success: false, 
@@ -290,13 +309,30 @@ exports.transitionWorkflow = async (req, res) => {
         }
         break;
 
+      case 'COORDINATOR_EXPEDITE':
+        return res.status(400).json({
+          success: false,
+          error: 'Coordinator cannot expedite or bypass faculty guide review. All requests must follow the legal order: Student -> Guide -> Coordinator -> HOD.'
+        });
+
       case 'COORDINATOR_VERIFY':
       case 'COORDINATOR_FORWARD':
-      case 'COORDINATOR_EXPEDITE':
         if (previousState === 'UNDER_GUIDE_REVIEW') {
           return res.status(400).json({ 
             success: false, 
             error: 'The coordinator cannot review before the proposal has been reviewed and endorsed by the faculty guide.' 
+          });
+        }
+        if (roleUpper.includes('HOD') || roleUpper.includes('HEAD')) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'HOD cannot verify on behalf of the Project Coordinator. The legal clearance order is Student -> Guide -> Coordinator -> HOD.' 
+          });
+        }
+        if (roleUpper.includes('STUDENT')) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Students cannot verify proposals.' 
           });
         }
         if (previousState !== 'UNDER_COORDINATOR_REVIEW') {
@@ -331,6 +367,24 @@ exports.transitionWorkflow = async (req, res) => {
             error: 'This proposal has already received final sanction and approval.' 
           });
         }
+        if (roleUpper.includes('COORD') || roleUpper.includes('COORDINATOR')) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Coordinator cannot grant HOD sanction. Sanction must be granted by the Head of Department.' 
+          });
+        }
+        if (roleUpper.includes('STUDENT')) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Students cannot sanction proposals.' 
+          });
+        }
+        if (!roleUpper.includes('HOD') && !roleUpper.includes('HEAD')) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Only the Head of Department (HOD) can grant final sanction and approval.' 
+          });
+        }
         if (previousState !== 'UNDER_HOD_REVIEW') {
           return res.status(400).json({ 
             success: false, 
@@ -352,7 +406,7 @@ exports.transitionWorkflow = async (req, res) => {
             error: 'The HOD cannot review before the proposal has been reviewed by the faculty guide and the coordinator.' 
           });
         }
-        if (previousState === 'UNDER_GUIDE_REVIEW' && roleUpper.includes('COORD')) {
+        if (previousState === 'UNDER_GUIDE_REVIEW' && (roleUpper.includes('COORD') || roleUpper.includes('COORDINATOR'))) {
           return res.status(400).json({ 
             success: false, 
             error: 'The coordinator cannot review before the proposal has been reviewed and endorsed by the faculty guide.' 
@@ -362,6 +416,18 @@ exports.transitionWorkflow = async (req, res) => {
           return res.status(400).json({ 
             success: false, 
             error: 'The HOD cannot review before the proposal has been verified by the coordinator.' 
+          });
+        }
+        if (previousState === 'UNDER_COORDINATOR_REVIEW' && roleUpper.includes('FACULTY')) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Faculty guide cannot request revision after endorsing to coordinator.' 
+          });
+        }
+        if (previousState === 'UNDER_HOD_REVIEW' && !roleUpper.includes('HOD') && !roleUpper.includes('HEAD')) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Only the Head of Department can request revision while the proposal is under HOD review.' 
           });
         }
         if (previousState === 'REVISION_REQUESTED') {
@@ -390,7 +456,7 @@ exports.transitionWorkflow = async (req, res) => {
             error: 'The HOD cannot review or reject before the proposal has been reviewed by the faculty guide and the coordinator.' 
           });
         }
-        if (previousState === 'UNDER_GUIDE_REVIEW' && roleUpper.includes('COORD')) {
+        if (previousState === 'UNDER_GUIDE_REVIEW' && (roleUpper.includes('COORD') || roleUpper.includes('COORDINATOR'))) {
           return res.status(400).json({ 
             success: false, 
             error: 'The coordinator cannot review or reject before the proposal has been reviewed and endorsed by the faculty guide.' 
@@ -400,6 +466,18 @@ exports.transitionWorkflow = async (req, res) => {
           return res.status(400).json({ 
             success: false, 
             error: 'The HOD cannot review or reject before the proposal has been verified by the coordinator.' 
+          });
+        }
+        if (previousState === 'UNDER_COORDINATOR_REVIEW' && roleUpper.includes('FACULTY')) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Faculty guide cannot reject after endorsing to coordinator.' 
+          });
+        }
+        if (previousState === 'UNDER_HOD_REVIEW' && !roleUpper.includes('HOD') && !roleUpper.includes('HEAD')) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Only the Head of Department can reject while the proposal is under HOD review.' 
           });
         }
         if (previousState === 'APPROVED' || previousState === 'REJECTED') {

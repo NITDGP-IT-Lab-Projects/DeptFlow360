@@ -279,4 +279,91 @@ describe('WorkflowEngine (Zero-Sample-Data & Dynamic Lifecycle)', () => {
     assert.strictEqual(exact.id, lower.id);
     assert.strictEqual(exact.id, upper.id);
   });
+
+  it('should strictly block Coordinator from reviewing or endorsing on behalf of Guide or expediting', () => {
+    const wf = engine.createWorkflow({
+      category: 'UG',
+      type: 'UG_PROJECT',
+      title: 'Edge AI Inference Pipeline',
+      domain: 'Edge Computing',
+      proposedGuideId: mockGuide.id,
+      guideName: mockGuide.name,
+      abstract: 'Quantized neural networks on Raspberry Pi.'
+    }, 'UG_STUDENT', mockSubmitter);
+
+    assert.strictEqual(wf.state, 'UNDER_GUIDE_REVIEW');
+
+    // 1. Coordinator attempts GUIDE_ENDORSE -> MUST THROW
+    assert.throws(() => {
+      engine.transition(wf.id, 'GUIDE_ENDORSE', 'Coordinator attempts endorsement', 'COORDINATOR', mockCoordinator);
+    }, /Coordinator cannot review or endorse on behalf of the faculty guide/);
+
+    // 2. Coordinator attempts GUIDE_APPROVE -> MUST THROW
+    assert.throws(() => {
+      engine.transition(wf.id, 'GUIDE_APPROVE', 'Coordinator attempts approval', 'COORDINATOR', mockCoordinator);
+    }, /Coordinator cannot review or endorse on behalf of the faculty guide/);
+
+    // 3. Coordinator attempts COORDINATOR_EXPEDITE -> MUST THROW
+    assert.throws(() => {
+      engine.transition(wf.id, 'COORDINATOR_EXPEDITE', 'Coordinator expediting workflow', 'COORDINATOR', mockCoordinator);
+    }, /Coordinator cannot expedite or bypass faculty guide review/);
+
+    // 4. Coordinator attempts revision on UNDER_GUIDE_REVIEW -> MUST THROW
+    assert.throws(() => {
+      engine.transition(wf.id, 'REQUEST_REVISION', 'Coordinator requesting revision', 'COORDINATOR', mockCoordinator);
+    }, /The coordinator cannot review before the proposal has been reviewed and endorsed by the faculty guide/);
+
+    // 5. Coordinator attempts reject on UNDER_GUIDE_REVIEW -> MUST THROW
+    assert.throws(() => {
+      engine.transition(wf.id, 'REJECT', 'Coordinator rejecting', 'COORDINATOR', mockCoordinator);
+    }, /The coordinator cannot review or reject before the proposal has been reviewed and endorsed by the faculty guide/);
+
+    // Proposal must still be strictly in UNDER_GUIDE_REVIEW
+    assert.strictEqual(engine.getById(wf.id).state, 'UNDER_GUIDE_REVIEW');
+  });
+
+  it('should start all requests unconditionally at UNDER_GUIDE_REVIEW regardless of creator or category', () => {
+    // 1. Student creates UG proposal
+    const wfStudent = engine.createWorkflow({
+      category: 'UG',
+      type: 'UG_PROJECT',
+      title: 'Student Created Proposal',
+      domain: 'AI',
+      proposedGuideId: mockGuide.id,
+      abstract: 'Student abstract.'
+    }, 'UG_STUDENT', mockSubmitter);
+    assert.strictEqual(wfStudent.state, 'UNDER_GUIDE_REVIEW');
+
+    // 2. Faculty Guide creates proposal
+    const wfGuide = engine.createWorkflow({
+      category: 'PG',
+      type: 'PG_DISSERTATION',
+      title: 'Guide Created Proposal',
+      domain: 'Cybersecurity',
+      proposedGuideId: mockGuide.id,
+      abstract: 'Guide abstract.'
+    }, 'FACULTY', mockGuide);
+    assert.strictEqual(wfGuide.state, 'UNDER_GUIDE_REVIEW');
+
+    // 3. Coordinator creates Departmental requisition
+    const wfCoord = engine.createWorkflow({
+      category: 'DEPARTMENTAL',
+      type: 'LAB_EQUIPMENT',
+      title: 'Coordinator Created Requisition',
+      domain: 'Hardware',
+      proposedGuideId: mockGuide.id,
+      abstract: 'GPU server requisition.'
+    }, 'COORDINATOR', mockCoordinator);
+    assert.strictEqual(wfCoord.state, 'UNDER_GUIDE_REVIEW');
+
+    // All must follow the legal sequence: Guide -> Coordinator -> HOD
+    engine.transition(wfCoord.id, 'GUIDE_ENDORSE', 'Endorsed by faculty guide', 'FACULTY', mockGuide);
+    assert.strictEqual(engine.getById(wfCoord.id).state, 'UNDER_COORDINATOR_REVIEW');
+
+    engine.transition(wfCoord.id, 'COORDINATOR_VERIFY', 'Verified by coordinator', 'COORDINATOR', mockCoordinator);
+    assert.strictEqual(engine.getById(wfCoord.id).state, 'UNDER_HOD_REVIEW');
+
+    engine.transition(wfCoord.id, 'HOD_APPROVE', 'Sanctioned by HOD', 'HOD', mockHOD);
+    assert.strictEqual(engine.getById(wfCoord.id).state, 'APPROVED');
+  });
 });

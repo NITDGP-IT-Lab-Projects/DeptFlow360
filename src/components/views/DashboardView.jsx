@@ -379,12 +379,33 @@ export const DashboardView = () => {
                         </span>
                       </td>
                       <td>
-                        <button 
-                          className="btn btn-primary btn-sm"
-                          onClick={() => openModal('DETAIL', wf)}
-                        >
-                          {isStudent ? 'View Status' : 'Review'}
-                        </button>
+                        {(() => {
+                          let label = isStudent ? 'View Status' : 'Review';
+                          let variant = 'primary';
+                          if (!isStudent) {
+                            if (wf.state === 'UNDER_GUIDE_REVIEW' && !isFaculty) {
+                              label = 'Inspect';
+                              variant = 'secondary';
+                            } else if (wf.state === 'UNDER_COORDINATOR_REVIEW' && !isCoordinator) {
+                              label = 'Inspect';
+                              variant = 'secondary';
+                            } else if (wf.state === 'UNDER_HOD_REVIEW' && !isHOD) {
+                              label = 'Inspect';
+                              variant = 'secondary';
+                            } else if (wf.state === 'APPROVED' || wf.state === 'REJECTED') {
+                              label = 'View Record';
+                              variant = 'secondary';
+                            }
+                          }
+                          return (
+                            <button 
+                              className={`btn btn-${variant} btn-sm`}
+                              onClick={() => openModal('DETAIL', wf)}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })()}
                       </td>
                     </tr>
                   ))

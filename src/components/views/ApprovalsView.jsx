@@ -228,12 +228,53 @@ export const ApprovalsView = () => {
                       </span>
                     </td>
                     <td>
-                      <button 
-                        className="btn btn-primary btn-sm"
-                        onClick={() => openModal('DETAIL', wf)}
-                      >
-                        Review / Sanction
-                      </button>
+                      {(() => {
+                        let btnLabel = 'Review / Sanction';
+                        let btnVariant = 'primary';
+                        if (wf.state === 'UNDER_GUIDE_REVIEW') {
+                          if (isFaculty) {
+                            btnLabel = 'Review & Endorse';
+                            btnVariant = 'primary';
+                          } else {
+                            btnLabel = 'Inspect (Guide Pending)';
+                            btnVariant = 'secondary';
+                          }
+                        } else if (wf.state === 'UNDER_COORDINATOR_REVIEW') {
+                          if (isCoordinator) {
+                            btnLabel = 'Verify & Forward';
+                            btnVariant = 'primary';
+                          } else {
+                            btnLabel = 'Inspect (Coord Pending)';
+                            btnVariant = 'secondary';
+                          }
+                        } else if (wf.state === 'UNDER_HOD_REVIEW') {
+                          if (isHOD) {
+                            btnLabel = 'Sanction & Sign Off';
+                            btnVariant = 'primary';
+                          } else {
+                            btnLabel = 'Inspect (HOD Review)';
+                            btnVariant = 'secondary';
+                          }
+                        } else if (wf.state === 'APPROVED') {
+                          btnLabel = 'View Cleared Record';
+                          btnVariant = 'secondary';
+                        } else if (wf.state === 'REVISION_REQUESTED') {
+                          btnLabel = 'Awaiting Resubmission';
+                          btnVariant = 'secondary';
+                        } else if (wf.state === 'REJECTED') {
+                          btnLabel = 'View Terminal Record';
+                          btnVariant = 'secondary';
+                        }
+
+                        return (
+                          <button 
+                            className={`btn btn-${btnVariant} btn-sm`}
+                            onClick={() => openModal('DETAIL', wf)}
+                          >
+                            {btnLabel}
+                          </button>
+                        );
+                      })()}
                     </td>
                   </tr>
                 ))

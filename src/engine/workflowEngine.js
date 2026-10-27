@@ -177,6 +177,15 @@ export class WorkflowEngine {
 
       case "GUIDE_APPROVE":
       case "GUIDE_ENDORSE":
+        if (roleKey.includes("COORD") || roleKey.includes("COORDINATOR")) {
+          throw new Error("Coordinator cannot review or endorse on behalf of the faculty guide. The legal clearance order is Student -> Guide -> Coordinator -> HOD.");
+        }
+        if (roleKey.includes("HOD") || roleKey.includes("HEAD")) {
+          throw new Error("HOD cannot review or endorse on behalf of the faculty guide. The legal clearance order is Student -> Guide -> Coordinator -> HOD.");
+        }
+        if (roleKey.includes("STUDENT")) {
+          throw new Error("Students cannot endorse proposals.");
+        }
         if (previousState !== "UNDER_GUIDE_REVIEW") {
           throw new Error(`Guide endorsement can only be performed when the proposal is under guide review (Current state: ${previousState}).`);
         }
@@ -189,10 +198,19 @@ export class WorkflowEngine {
         targetNotifRole = "COORDINATOR";
         break;
 
+      case "COORDINATOR_EXPEDITE":
+        throw new Error("Coordinator cannot expedite or bypass faculty guide review. All requests must follow the legal order: Student -> Guide -> Coordinator -> HOD.");
+
       case "COORDINATOR_FORWARD":
       case "COORDINATOR_VERIFY":
         if (previousState === "UNDER_GUIDE_REVIEW") {
           throw new Error("The coordinator cannot review before the proposal has been reviewed and endorsed by the faculty guide.");
+        }
+        if (roleKey.includes("HOD") || roleKey.includes("HEAD")) {
+          throw new Error("HOD cannot verify on behalf of the Project Coordinator. The legal clearance order is Student -> Guide -> Coordinator -> HOD.");
+        }
+        if (roleKey.includes("STUDENT")) {
+          throw new Error("Students cannot verify proposals.");
         }
         if (previousState !== "UNDER_COORDINATOR_REVIEW") {
           throw new Error(`Coordinator verification can only be performed when the proposal is under coordinator review (Current state: ${previousState}).`);
@@ -201,12 +219,6 @@ export class WorkflowEngine {
         actionLabel = "COORDINATOR_VERIFIED";
         notifMessage = `Coordinator ${actorRoleData.name} verified & forwarded: ${wf.title} for HOD sanction.`;
         targetNotifRole = "HOD";
-        break;
-
-      case "COORDINATOR_EXPEDITE":
-        nextState = "UNDER_COORDINATOR_REVIEW";
-        actionLabel = "COORDINATOR_EXPEDITED";
-        notifMessage = `Coordinator expedited workflow: ${wf.title}`;
         break;
 
       case "HOD_APPROVE":
@@ -219,6 +231,15 @@ export class WorkflowEngine {
         }
         if (previousState === "APPROVED") {
           throw new Error("This proposal has already received final sanction and approval.");
+        }
+        if (roleKey.includes("COORD") || roleKey.includes("COORDINATOR")) {
+          throw new Error("Coordinator cannot grant HOD sanction. Sanction must be granted by the Head of Department.");
+        }
+        if (roleKey.includes("STUDENT")) {
+          throw new Error("Students cannot sanction proposals.");
+        }
+        if (!roleKey.includes("HOD") && !roleKey.includes("HEAD")) {
+          throw new Error("Only the Head of Department (HOD) can grant final sanction and approval.");
         }
         if (previousState !== "UNDER_HOD_REVIEW") {
           throw new Error(`HOD sanction can only be granted when the proposal is under HOD review (Current state: ${previousState}).`);
@@ -235,11 +256,17 @@ export class WorkflowEngine {
         if (previousState === "UNDER_GUIDE_REVIEW" && (roleKey.includes("HOD") || roleKey.includes("HEAD"))) {
           throw new Error("The HOD cannot review before the proposal has been reviewed by the faculty guide and the coordinator.");
         }
-        if (previousState === "UNDER_GUIDE_REVIEW" && roleKey.includes("COORD")) {
+        if (previousState === "UNDER_GUIDE_REVIEW" && (roleKey.includes("COORD") || roleKey.includes("COORDINATOR"))) {
           throw new Error("The coordinator cannot review before the proposal has been reviewed and endorsed by the faculty guide.");
         }
         if (previousState === "UNDER_COORDINATOR_REVIEW" && (roleKey.includes("HOD") || roleKey.includes("HEAD"))) {
           throw new Error("The HOD cannot review before the proposal has been verified by the coordinator.");
+        }
+        if (previousState === "UNDER_COORDINATOR_REVIEW" && roleKey.includes("FACULTY")) {
+          throw new Error("Faculty guide cannot request revision after endorsing to coordinator.");
+        }
+        if (previousState === "UNDER_HOD_REVIEW" && !roleKey.includes("HOD") && !roleKey.includes("HEAD")) {
+          throw new Error("Only the Head of Department can request revision while the proposal is under HOD review.");
         }
         if (previousState === "REVISION_REQUESTED") {
           throw new Error("Revision has already been requested for this proposal. Awaiting student resubmission.");
@@ -258,11 +285,17 @@ export class WorkflowEngine {
         if (previousState === "UNDER_GUIDE_REVIEW" && (roleKey.includes("HOD") || roleKey.includes("HEAD"))) {
           throw new Error("The HOD cannot review or reject before the proposal has been reviewed by the faculty guide and the coordinator.");
         }
-        if (previousState === "UNDER_GUIDE_REVIEW" && roleKey.includes("COORD")) {
+        if (previousState === "UNDER_GUIDE_REVIEW" && (roleKey.includes("COORD") || roleKey.includes("COORDINATOR"))) {
           throw new Error("The coordinator cannot review or reject before the proposal has been reviewed and endorsed by the faculty guide.");
         }
         if (previousState === "UNDER_COORDINATOR_REVIEW" && (roleKey.includes("HOD") || roleKey.includes("HEAD"))) {
           throw new Error("The HOD cannot review or reject before the proposal has been verified by the coordinator.");
+        }
+        if (previousState === "UNDER_COORDINATOR_REVIEW" && roleKey.includes("FACULTY")) {
+          throw new Error("Faculty guide cannot reject after endorsing to coordinator.");
+        }
+        if (previousState === "UNDER_HOD_REVIEW" && !roleKey.includes("HOD") && !roleKey.includes("HEAD")) {
+          throw new Error("Only the Head of Department can reject while the proposal is under HOD review.");
         }
         if (previousState === "APPROVED" || previousState === "REJECTED") {
           throw new Error(`Proposal is already in terminal state: ${previousState}.`);
@@ -315,8 +348,9 @@ export class WorkflowEngine {
       year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" 
     });
 
-    const isDirectHod = (payload.category === "DEPARTMENTAL");
-    const initialState = isDirectHod ? "UNDER_COORDINATOR_REVIEW" : "UNDER_GUIDE_REVIEW";
+    // Strict sequential clearance order: Student -> Guide -> Coordinator -> HOD
+    // All proposals created by any actor (Student, Faculty Guide, Coordinator) enter the chain at UNDER_GUIDE_REVIEW
+    const initialState = "UNDER_GUIDE_REVIEW";
 
     const newWorkflow = {
       id: newId,
