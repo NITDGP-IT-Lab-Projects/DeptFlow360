@@ -262,7 +262,7 @@ export class WorkflowEngine {
         id: actorRoleData.id,
         name: actorRoleData.name,
         rollNo: actorRoleData.rollNo || "N/A",
-        email: `${actorRoleData.name.toLowerCase().replace(/\s+/g, ".")}@university.edu`,
+        email: actorRoleData.email || `${actorRoleData.name.toLowerCase().replace(/\s+/g, ".")}@university.edu`,
         degree: actorRoleData.title || "Student",
         teamMembers: payload.teamMembers || [actorRoleData.name]
       },

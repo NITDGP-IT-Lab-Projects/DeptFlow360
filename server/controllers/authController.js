@@ -114,6 +114,7 @@ const signup = async (req, res) => {
         token,
         user: {
           id: newUser._id,
+          referenceId: newUser.referenceId || null,
           name: newUser.name,
           email: newUser.email,
           role: newUser.role,
@@ -244,6 +245,7 @@ const signin = async (req, res) => {
       token,
       user: {
         id: userId,
+        referenceId: user.referenceId || null,
         name: user.name,
         email: user.email,
         role: user.role,

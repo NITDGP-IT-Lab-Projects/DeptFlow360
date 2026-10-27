@@ -88,9 +88,11 @@ export const AppProvider = ({ children }) => {
   const currentRoleData = useMemo(() => {
     const baseRole = INITIAL_ROLES[currentRoleKey] || INITIAL_ROLES.UG_STUDENT;
     if (currentUser && currentUser.name) {
+      const facObj = facultyList.find(f => f.email?.toLowerCase() === currentUser.email?.toLowerCase());
       return {
         ...baseRole,
-        id: currentUser.id || baseRole.id,
+        id: facObj?.id || currentUser.referenceId || currentUser.id || baseRole.id,
+        referenceId: currentUser.referenceId || facObj?.id || null,
         name: currentUser.name,
         title: currentUser.designation || baseRole.title || 'Academic Member',
         email: currentUser.email
@@ -102,7 +104,7 @@ export const AppProvider = ({ children }) => {
       title: '',
       email: ''
     };
-  }, [currentRoleKey, currentUser]);
+  }, [currentRoleKey, currentUser, facultyList]);
 
   // Check Backend Connection and sync data if available
   const syncWithBackend = useCallback(async () => {
@@ -403,8 +405,8 @@ export const AppProvider = ({ children }) => {
       setWorkflows([...workflowEngine.getAll()]);
       setNotifications([...workflowEngine.notifications]);
 
-      if (['UG_PROJECT_PROPOSAL', 'PG_THESIS_PROPOSAL'].includes(payload.type)) {
-        const isUg = payload.type === 'UG_PROJECT_PROPOSAL';
+      if (['UG_PROJECT', 'PG_DISSERTATION', 'UG_PROJECT_PROPOSAL', 'PG_THESIS_PROPOSAL'].includes(payload.type)) {
+        const isUg = payload.type === 'UG_PROJECT' || payload.type === 'UG_PROJECT_PROPOSAL';
         const teamObj = {
           teamId: `${isUg ? 'UG' : 'PG'}-TEAM-${newWf.id.split('-').pop()}`,
           type: isUg ? 'UG' : 'PG',
@@ -431,13 +433,21 @@ export const AppProvider = ({ children }) => {
 
       // Sync with Express backend
       try {
+        const submitterEmail = currentUser?.email || currentRoleData.email || `${currentRoleData.name.toLowerCase().replace(/\s+/g, ".")}@university.edu`;
         await api.createWorkflow({
           ...payload,
+          actorData: {
+            id: currentRoleData.id || currentUser?.id,
+            name: currentRoleData.name,
+            email: submitterEmail,
+            role: currentRoleKey,
+            title: currentRoleData.title
+          },
           submittedBy: {
             id: currentRoleData.id || currentUser?.id,
             name: currentRoleData.name,
             rollNo: currentRoleData.rollNo || "N/A",
-            email: currentRoleData.email || `${currentRoleData.name.toLowerCase().replace(/\s+/g, ".")}@university.edu`,
+            email: submitterEmail,
             degree: currentRoleData.title || "Student",
             teamMembers: payload.teamMembers || [currentRoleData.name]
           }
